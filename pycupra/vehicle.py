@@ -11,7 +11,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from json import dumps as to_json
 from collections import OrderedDict
-from .utilities import find_path, is_valid_path
+from .utilities import find_path, is_valid_path, convert_datetime_to_string
 from .exceptions import (
     SeatConfigException,
     SeatException,
@@ -742,9 +742,9 @@ class Vehicle:
                 }
             else:
                 startDateTime = datetime.fromisoformat(schedule.get('date',"2025-01-01")+'T'+schedule.get('time',"00:00"))
-                _LOGGER.info(f'startDateTime={startDateTime.isoformat()}')
+                _LOGGER.info(f'startDateTime={startDateTime.strftime("%Y-%m-%dT%H:%M:%SZ")}')
                 data['singleTimer']= {
-                    "startDateTimeLocal": startDateTime.isoformat(),
+                    "startDateTime": startDateTime.strftime("%Y-%m-%dT%H:%M:%SZ"),
                     #"preferredChargingTimes": preferedChargingTimes
                     }
             data["preferredChargingTimes"]= preferedChargingTimes
@@ -861,7 +861,7 @@ class Vehicle:
                 # At the moment, only one charging program id is supported
                 chargingProgramId = int(schedule.get('chargingProgramId', False))
                 found = False
-                for chargingProgram in self.attrs.get('departureProfiles', {}).get('profileIds', []):
+                for chargingProgram in self.attrs.get('departureProfiles', {}).get('profiles', []):
                     if chargingProgram.get('id',None) == chargingProgramId:
                         found = True
                         break
@@ -897,9 +897,9 @@ class Vehicle:
             else:
                 if self._relevantCapabilties.get('departureProfiles', {}).get('supportsSingleTimer', False):
                     startDateTime = datetime.fromisoformat(schedule.get('date',"2025-01-01")+'T'+schedule.get('time',"00:00"))
-                    _LOGGER.info(f'startDateTime={startDateTime.isoformat()}')
+                    _LOGGER.info(f'startDateTime={startDateTime.strftime("%Y-%m-%dT%H:%M:%SZ")}')
                     newDepProfileSchedule['singleTimer']= {
-                        "startDateTimeLocal": startDateTime.isoformat(),
+                        "startDateTime": startDateTime.strftime("%Y-%m-%dT%H:%M:%SZ"),
                         }
                 else:
                     raise SeatInvalidRequestException('Vehicle does not support single timer.')
@@ -963,7 +963,8 @@ class Vehicle:
                 raise SeatRequestInProgressException('Scheduling of departure profile is already in progress')
         try:
             self._requests['latest'] = 'Departureprofile'
-            response = await self._connection.setDepartureprofile(self.vin, self._apibase, data, spin=False)
+            converted_data = convert_datetime_to_string(data) # datetime to string
+            response = await self._connection.setDepartureprofile(self.vin, self._apibase, converted_data, spin=False)
             if not response:
                 self._requests['departureprofile'] = {'status': 'Failed'}
                 _LOGGER.error('Failed to execute departure profile request')
@@ -3285,7 +3286,7 @@ class Vehicle:
     def json(self) -> str:
         def serialize(obj):
             if isinstance(obj, datetime):
-                return obj.isoformat()
+                return obj.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         return to_json(
             OrderedDict(sorted(self.attrs.items())),
