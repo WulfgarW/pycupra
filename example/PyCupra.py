@@ -242,6 +242,25 @@ async def demo_set_departure_profile_schedule(vehicle):
         print("   Request failed.")
     return success
 
+async def demo_set_departure_profile_schedule_date(vehicle):
+    print('########################################')
+    print('#  Change one departure profile date   #')
+    print('########################################')
+    success= await vehicle.set_departure_profile_schedule(id = 2,                             # id = 1, 2, 3
+        schedule = {                                               # Set the departure time, date and periodicity
+            "enabled": False,                                      # Set the timer active or not, True or False, required
+            "recurring": False,                                    # True or False for recurring, required
+            "time": "11:11",                                       # Time for departure, required
+            "date": "2025-10-21",                                  # Date in format YYYY-MM-DD, required
+            "chargingProgramId": 3,                                # Id of the charging program to be used for the departure profile
+            }
+        )
+    if success:
+        print("   Request completed successfully.")
+    else:
+        print("   Request failed.")
+    return success
+
 async def demo_set_timer_active(vehicle, id=1, action="off"):
     print('########################################')
     print('#         (De-)Activate one timer      #')
@@ -566,6 +585,7 @@ async def main():
             #await demo_set_charge_limit(vehicle, 30)                                  # limit = PHEV: 0/10/20/30/40/50, EV: 50/60/70/80/90/100
             
             #await demo_set_departure_profile_schedule(vehicle)                        # arguments id and schedule can be found in the demo function
+            #await demo_set_departure_profile_schedule_date(vehicle)                        # arguments id and schedule can be found in the demo function
             #await demo_set_departure_profile_active(vehicle, id=3, action="off")                 # id = 1, 2, 3, action = "on" or "off".
 
             #await demo_set_lock(vehicle,action = "lock", 
