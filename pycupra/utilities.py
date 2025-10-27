@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from base64 import b64encode
 from string import ascii_letters as letters, digits
 from sys import argv
@@ -98,6 +98,6 @@ def datetime2string(data):
     elif isinstance(data, list):
         return [datetime2string(item) for item in data]
     elif isinstance(data, datetime):
-        return data.isoformat()
+        return data.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     else:
         return data
