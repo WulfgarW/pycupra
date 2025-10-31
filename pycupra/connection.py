@@ -216,15 +216,29 @@ class Connection:
             _LOGGER.warning(f'deleteTokenFile() not successful. Error: {e}')
             return False
 
-    def writeImageFile(self, imageName, imageData, imageDict):
+    def writeImageFile(self, imageName, imageData, imageDict, vin):
         try:
-            with open(f'./www/image_{imageName}.png', "wb") as f:
+            if self._hass is None:
+                _LOGGER.error(
+                    "Home Assistant instance not available - cannot save image"
+                )
+                return False
+            
+            # Target directory in HA container (/config/www)
+            base_path = self._hass.config.path("www")
+            images_dir = os.path.join(base_path, "pycupra")
+            os.makedirs(images_dir, exist_ok=True)
+
+            file_path = os.path.join(images_dir, f"image_{vin}_{imageName}.png")
+
+            with open(file_path, "wb") as f:
                 f.write(imageData)
-            imageDict[imageName]=f'/local/image_{imageName}.png'
+            imageDict[imageName]=f'/local/image_{vin}_{imageName}.png'
+            _LOGGER.debug(f"Saved image: {file_path}")
             f.close()
             return True
-        except:
-            _LOGGER.warning('writeImageFile() not successful. Ignoring this problem.')
+        except Exception as e:
+            _LOGGER.warning(f'writeImageFile() not successful. Ignoring this problem. Error: {e}')
             return False
 
   # API login/logout/authorization
@@ -1024,7 +1038,7 @@ class Connection:
                 )
                 if response.get('front',False):
                     images: dict[str, str] ={}
-                    for pos in {'front', 'side', 'top', 'rear'}:
+                    for pos in {"front", "side", "top", "rear", "rbcFront", "rbcCable"}:
                         if pos in response:
                             pic = await self._request(
                                 METH_GET,
@@ -1032,7 +1046,14 @@ class Connection:
                             )
                             if len(pic)>0:
                                 loop = asyncio.get_running_loop()
-                                await loop.run_in_executor(None, self.writeImageFile, pos,pic, images)
+                                await loop.run_in_executor(
+                                    None,
+                                    self.writeImageFile,
+                                    pos,
+                                    pic,
+                                    images,
+                                    vin
+                                )
                             if pos=='front':
                                 # Crop the front image to a square format
                                 try:
@@ -1049,7 +1070,14 @@ class Connection:
                                     im1 = im.crop((left, top, right, bottom))
                                     byteIO = BytesIO()
                                     im1.save(byteIO, format='PNG')
-                                    await loop.run_in_executor(None, self.writeImageFile, pos+'_cropped',byteIO.getvalue(), images)
+                                    await loop.run_in_executor(
+                                        None,
+                                        self.writeImageFile,
+                                        pos + "_cropped",
+                                        byteIO.getvalue(),
+                                        images,
+                                        vin
+                                    )
                                 except:
                                     _LOGGER.warning('Cropping front image to square format failed.')
  
