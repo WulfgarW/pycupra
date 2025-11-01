@@ -127,7 +127,7 @@ API_MBB_STATUSDATA = 'https://customer-profile.vwgroup.io/v3/customers/{self._us
 API_PERSONAL_DATA= 'https://customer-profile.vwgroup.io/v3/customers/{self._user_id}/personalData'
 #Other option for personal data is '{baseurl}/v1/users/{self._user_id}'
 
-API_VEHICLES = '{APP_URI}/v3/users/{self._user_id}/garage/vehicles'                                  # Garage info
+API_VEHICLES = '{APP_URI}/v2/users/{self._user_id}/garage/vehicles'                                  # Garage info
 API_MYCAR = '{baseurl}/v5/users/{self._user_id}/vehicles/{vin}/mycar'                                # Vehicle status report
 API_CHARGING = '{baseurl}/v1/vehicles/{vin}/charging'                                                # Vehicle charging information 
 #API_OPERLIST = '{homeregion}/api/rolesrights/operationlist/v3/vehicles/{vin}'                       # API Endpoint for supported operations
@@ -150,7 +150,7 @@ API_RELATION_STATUS = '{baseurl}/v1/users/{self._user_id}/vehicles/{vin}/relatio
 API_INVITATIONS = '{baseurl}/v1/user/{self._user_id}/invitations'                                    # ???
 API_CAPABILITIES = '{APP_URI}/v1/user/{self._user_id}/vehicle/{vin}/capabilities'                    # ???
 #API_CAPABILITIES_MANAGEMENT = '{API_CAPABILITIES}/management'                                        # ???
-API_IMAGE = '{baseurl}/v2/vehicles/{vin}/renders'
+API_IMAGE = '{baseurl}/v1/vehicles/{vin}/renders'
 API_HONK_AND_FLASH = '{baseurl}//v1/vehicles/{vin}/honk-and-flash'
 API_ACCESS = '{baseurl}//v1/vehicles/{vin}/access/{action}'                                          # to lock or unlock vehicle
 API_REQUESTS = '{baseurl}/vehicles/{vin}/{capability}/requests'
