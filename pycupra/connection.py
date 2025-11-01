@@ -218,12 +218,11 @@ class Connection:
 
     def writeImageFile(self, imageName, imageData, imageDict, vin):
         try:
-            if self._hass is None:
-                _LOGGER.error(
-                    "Home Assistant instance not available - cannot save image"
-                )
-                return False
-            
+            if hasattr(self, '_hass'):
+                base_path = self._hass.config.path("www")
+            else:
+                base_path = os.path.join(".", "www")
+           
             # Target directory in HA container (/config/www)
             base_path = self._hass.config.path("www")
             images_dir = os.path.join(base_path, "pycupra")
