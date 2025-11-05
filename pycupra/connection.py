@@ -1232,10 +1232,17 @@ class Connection:
             response = await self.get(eval(f"f'{API_DEPARTURE_PROFILES}'"))
             if response.get('timers', {}):
                 for e in range(len(response.get('timers', []))):
-                    if response['timers'][e].get('singleTimer','')==None:
+                    singleTimer = response['timers'][e].get('singleTimer','')
+                    if singleTimer==None:
                         response['timers'][e].pop('singleTimer')
-                    if response['timers'][e].get('recurringTimer','')==None:
+                    elif isinstance(singleTimer, dict) and isinstance(singleTimer['startDateTime'], datetime):
+                        response['timers'][e]['singleTimer']['startDateTime'] = singleTimer['startDateTime'].astimezone()
+                    recurringTimer = response['timers'][e].get('recurringTimer','')
+                    if recurringTimer==None:
                         response['timers'][e].pop('recurringTimer')
+                    elif isinstance(recurringTimer, dict) and recurringTimer.get('startTime','')!=None:
+                        startTime = datetime.fromisoformat(datetime.now().strftime('%Y-%m-%d')+'T'+recurringTimer.get('startTime',"00:00")+'+00:00')
+                        response['timers'][e]['recurringTimer']['startTime'] = startTime.astimezone().strftime('%H:%M')
                 data={}
                 data['departureProfiles'] = response
                 return data

@@ -940,8 +940,9 @@ class Vehicle:
             else:
                 newDepProfileSchedule['enabled']=False
             if schedule.get("recurring",False):
+                startTime = datetime.fromisoformat(datetime.now().strftime('%Y-%m-%d')+'T'+schedule.get('time',"00:00")).astimezone()
                 newDepProfileSchedule['recurringTimer']= {
-                    "startTime": schedule.get('time',"00:00"),
+                    "startTime": startTime.astimezone(timezone.utc).strftime('%H:%M'),
                     "recurringOn":{""
                         "mondays":(schedule.get('days',"nnnnnnn")[0]=='y'),
                         "tuesdays":(schedule.get('days',"nnnnnnn")[1]=='y'),
@@ -972,6 +973,10 @@ class Vehicle:
                 if data['timers'][e].get('id',-1)==id:
                     data['timers'][e] = newDepProfileSchedule
                     idFound=True
+                elif 'recurringTimer' in data['timers'][e]:
+                    startTimeString = data['timers'][e]['recurringTimer'].get('startTime',"00:00")
+                    startTime = datetime.fromisoformat(datetime.now().strftime('%Y-%m-%d')+'T'+startTimeString).astimezone()
+                    data['timers'][e]['recurringTimer']['startTime'] = startTime.astimezone(timezone.utc).strftime('%H:%M')
             if idFound:
                 return await self._set_departure_profiles(data, action='set')
             raise SeatInvalidRequestException(f'Departure profile id {id} not found in {data.get('timers',[])}.')
