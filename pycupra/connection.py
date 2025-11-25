@@ -195,7 +195,7 @@ class Connection:
             return False
 
     def writeTokenFile(self, brand):
-        if hasattr(self, '_tokenFile'):
+        if not hasattr(self, '_tokenFile'):
             _LOGGER.info('No token file name provided. Cannot write tokens to file.')
             return False
         self._session_tokens[brand]['user_id']=self._user_id
@@ -209,7 +209,7 @@ class Connection:
             return False
 
     def deleteTokenFile(self):
-        if hasattr(self, '_tokenFile'):
+        if not hasattr(self, '_tokenFile'):
             _LOGGER.debug('No token file name provided. Cannot delete token file.')
             return False
         try:
