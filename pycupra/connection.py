@@ -710,7 +710,7 @@ class Connection:
                     res = response
                 elif response.status == 200 and method==METH_DELETE:
                     res = response
-                elif response.status >= 200 or response.status <= 300:
+                elif 200 <= response.status <= 299:
                     # If this is a revoke token url, expect Content-Length 0 and return
                     if int(response.headers.get('Content-Length', 0)) == 0 and 'revoke' in url:
                         if response.status == 200:
