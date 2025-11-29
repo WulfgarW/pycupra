@@ -724,6 +724,11 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                                 "Expected read error during reset: %s",
                                 type(osex).__name__,
                             )
+                    elif isinstance(osex, ConnectionResetError):
+                        _logger.info("Connection reset by peer – reconnecting")
+                        if self._try_increment_error_count(ErrorType.CONNECTION):
+                            await self._reset()
+                        continue
                     else:
                         _logger.exception("Unexpected exception during read\n")
                         if self._try_increment_error_count(ErrorType.CONNECTION):
