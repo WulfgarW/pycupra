@@ -96,6 +96,7 @@ class Vehicle:
         }
 
         self._last_full_update = datetime.now(tz=None) - timedelta(seconds=1200)
+        self._wantedStateOfProperty = {} # to (temporary) store the new state wanted for a property
         # Timestamps for the last API calls
         self._last_get_statusreport = datetime.now(tz=None) - timedelta(seconds=600)
         self._last_get_climatisation_timers = datetime.now(tz=None) - timedelta(seconds=600)
@@ -173,6 +174,11 @@ class Vehicle:
                     alarmTimestamp = self.attrs.get('areaAlarm', {}).get('timestamp', 0)
                     if alarmTimestamp < datetime.now(tz=None) - timedelta(seconds= 900):
                         self.attrs.pop("areaAlarm")
+
+                self.checkForRunningRequests('batterycharge')
+                self.checkForRunningRequests('climatisation')
+                # to be implemented later, when showing wanted state for switch, while request is running 
+                # {'departuretimer','departureprofile', 'climatisationtimer', 'preheater', 'lock', 'honkandflash'}
 
                 if self.firebaseStatus == FIREBASE_STATUS_ACTIVATED:
                     # Check, if fcmpushclient still started
@@ -489,6 +495,12 @@ class Vehicle:
             else:
                 _LOGGER.error(f'Data type passed is invalid.')
                 raise SeatInvalidRequestException(f'Invalid data type.')
+            if data.get('maxChargeCurrentAc',None):
+                # set the new wanted state of the property slow_charge to be changed by the request
+                newValue = False
+                if data.get('maxChargeCurrentAc',None)=='reduced':
+                    newValue= True
+                self.setWantedStateOfProperty('batterycharge', 'settings', 'slow_charge', newValue)
             return await self.set_charger('settings', data)
         else:
             _LOGGER.error('No charger support.')
@@ -540,6 +552,7 @@ class Vehicle:
             else:
                 _LOGGER.error(f'Data type passed is invalid.')
                 raise SeatInvalidRequestException(f'Invalid data type.')
+            self.setWantedStateOfProperty('batterycharge', 'settings', 'charging_battery_care', value)
             return await self.set_charger('update-battery-care', data)
         else:
             _LOGGER.error('No charger support.')
@@ -550,18 +563,23 @@ class Vehicle:
         if not self._relevantCapabilties.get('charging', {}).get('active', False):
             _LOGGER.info('Remote start/stop of charger is not supported.')
             raise SeatInvalidRequestException('Remote start/stop of charger is not supported.')
-        if self._requests['batterycharge'].get('id', False):
-            timestamp = self._requests.get('batterycharge', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('batterycharge', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Charging action already in progress')
+        if self.checkForRunningRequests('batterycharge'):
+            raise SeatRequestInProgressException('Charging action already in progress')
+        #if self._requests['batterycharge'].get('id', False):
+        #    timestamp = self._requests.get('batterycharge', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('batterycharge', {}).pop('id')
+        #        self.cleanWantedStateOfProperty('batterycharge') # clean the charging elements of self._wantedStateOfProperty
+        #    else:
+        #        raise SeatRequestInProgressException('Charging action already in progress')
         if self._relevantCapabilties.get('charging', {}).get('active', False):
             if action in ['start', 'Start', 'On', 'on']:
                 mode='start'
+                self.setWantedStateOfProperty('batterycharge', 'charging', True)
             elif action in ['stop', 'Stop', 'Off', 'off']:
                 mode='stop'
+                self.setWantedStateOfProperty('batterycharge', 'charging', False)
             elif action=='settings':
                 mode=action
             elif action=='update-settings' or action=='update-battery-care':
@@ -574,8 +592,8 @@ class Vehicle:
             response = await self._connection.setCharger(self.vin, self._apibase, mode, data)
             if not response:
                 self._requests['batterycharge'] = {'status': 'Failed'}
-                _LOGGER.error(f'Failed to {action} charging')
-                raise SeatException(f'Failed to {action} charging')
+                _LOGGER.error(f'Failed to call charging action {action}')
+                raise SeatException(f'Failed to call charging action {action}')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['batterycharge'] = {
@@ -620,15 +638,16 @@ class Vehicle:
                 if actionSuccessful:
                     _LOGGER.debug('POST request for charger successful. New status as expected.')
                     self._requests.get('batterycharge', {}).pop('id')
+                    self.cleanWantedStateOfProperty('batterycharge') # clean the charging elements of self._wantedStateOfProperty
                     return True
                 _LOGGER.error('Response to POST request seemed successful but the charging status did not change as expected.')
                 return False
         except (SeatInvalidRequestException, SeatException):
             raise
         except Exception as error:
-            _LOGGER.warning(f'Failed to {action} charging - {error}')
+            _LOGGER.warning(f'Failed to call charging action: {action} - error: {error}')
             self._requests['batterycharge'] = {'status': 'Exception'}
-            raise SeatException(f'Failed to execute set charger - {error}')
+            raise SeatException(f'Failed to execute set charger - error: {error}')
 
    # API endpoint departuretimer
     async def set_charge_limit(self, limit=50) -> bool:
@@ -821,13 +840,15 @@ class Vehicle:
         """ Set departure timers. """
         if not self._relevantCapabilties.get('departureTimers', {}).get('active', False):
             raise SeatInvalidRequestException('Departure timers are not supported.')
-        if self._requests['departuretimer'].get('id', False):
-            timestamp = self._requests.get('departuretimer', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('departuretimer', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Scheduling of departure timer is already in progress')
+        if self.checkForRunningRequests('departuretimer'):
+            raise SeatRequestInProgressException('Scheduling of departure timer is already in progress')
+        #if self._requests['departuretimer'].get('id', False):
+        #    timestamp = self._requests.get('departuretimer', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('departuretimer', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('Scheduling of departure timer is already in progress')
 
         try:
             self._requests['latest'] = 'Departuretimer'
@@ -1018,13 +1039,15 @@ class Vehicle:
         """ Set departure profiles. """
         if not self._relevantCapabilties.get('departureProfiles', {}).get('active', False):
             raise SeatInvalidRequestException('Departure profiles are not supported.')
-        if self._requests['departureprofile'].get('id', False):
-            timestamp = self._requests.get('departureprofile', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('departureprofile', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Scheduling of departure profile is already in progress')
+        if self.checkForRunningRequests('departureprofile'):
+            raise SeatRequestInProgressException('Scheduling of departure profile is already in progress')
+        #if self._requests['departureprofile'].get('id', False):
+        #    timestamp = self._requests.get('departureprofile', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('departureprofile', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('Scheduling of departure profile is already in progress')
         try:
             self._requests['latest'] = 'Departureprofile'
             converted_data = datetime2string(data, True) # datetime to string
@@ -1103,25 +1126,6 @@ class Vehicle:
 
     # Climatisation electric/auxiliary/windows (CLIMATISATION)
 
-    # Obsolete now. Can be deleted in the future
-    #async def set_climatisation_temp(self, temperature=20) -> bool:
-    #    """Set climatisation target temp."""
-    #    if self.is_electric_climatisation_supported or self.is_auxiliary_climatisation_supported:
-    #        if 16 <= float(temperature) <= 30:
-    #            data = {
-    #                'climatisationWithoutExternalPower': self.climatisation_without_external_power, 
-    #                'targetTemperature':    temperature, 
-    #                'targetTemperatureUnit':    'celsius'
-    #                }
-    #            mode = 'settings'
-    #        else:
-    #            _LOGGER.error(f'Set climatisation target temp to {temperature} is not supported.')
-    #            raise SeatInvalidRequestException(f'Set climatisation target temp to {temperature} is not supported.')
-    #        return await self._set_climater(mode, data)
-    #    else:
-    #        _LOGGER.error('No climatisation support.')
-    #        raise SeatInvalidRequestException('No climatisation support.')
-
     async def set_window_heating(self, action = 'stop') -> bool:
         """Turn on/off window heater."""
         if self.is_window_heater_supported:
@@ -1134,25 +1138,6 @@ class Vehicle:
         else:
             _LOGGER.error('No climatisation support.')
             raise SeatInvalidRequestException('No climatisation support.')
-
-    # Obsolete now. Can be deleted in the future
-    #async def set_battery_climatisation(self, mode = False) -> bool: 
-    #    """Turn on/off electric climatisation from battery."""
-    #    if self.is_electric_climatisation_supported:
-    #        if mode in [True, False]:
-    #            data = {
-    #                'climatisationWithoutExternalPower': mode, 
-    #                'targetTemperature':    self.climatisation_target_temperature, #keep the current target temperature
-    #                'targetTemperatureUnit':    'celsius'
-    #                }
-    #            mode = 'settings'
-    #        else:
-    #            _LOGGER.error(f'Set climatisation without external power to "{mode}" is not supported.')
-    #            raise SeatInvalidRequestException(f'Set climatisation without external power to "{mode}" is not supported.')
-    #        return await self._set_climater(mode, data)
-    #    else:
-    #        _LOGGER.error('No climatisation support.')
-    #        raise SeatInvalidRequestException('No climatisation support.')
 
     async def set_climatisation_one_setting(self, settingName, value = False) -> bool:
         """Set one attribute in the climatisation settings to a new value."""
@@ -1191,6 +1176,21 @@ class Vehicle:
             else:
                 _LOGGER.error(f'Set climatisation without external power to "{mode}" is not supported.')
                 raise SeatInvalidRequestException(f'Set climatisation without external power to "{mode}" is not supported.')
+            if not self.checkForRunningRequests('climatisation'):
+                # set the wanted state of the property affected by the request
+                if settingName=='climatisationWithoutExternalPower':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'climatisationWithoutExternalPower', value)
+                elif settingName=='zoneFrontLeftEnabled':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'zoneFrontLeftEnabled', value)
+                elif settingName=='zoneFrontRightEnabled':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'zoneFrontRightEnabled', value)
+                elif settingName=='climatisationAtUnlock':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'climatisationAtUnlock', value)
+                elif settingName=='windowHeatingEnabled':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'windowHeatingEnabled', value)
+                elif settingName=='targetTemperatureInCelsius' or settingName=='targetTemperatureInFahrenheit':
+                    self.setWantedStateOfProperty('climatisation', 'settings', 'climatisation_target_temperature', value)
+
             return await self._set_climater(mode, data)
         else:
             _LOGGER.error(f'Could not find climatisation setting {settingName}.')
@@ -1238,11 +1238,11 @@ class Vehicle:
                     return await self._set_climater(modeLc, data, spin)
                 else:
                     if modeLc=='auxiliary_stop' and (self._requests['climatisation'].get('id', False) or self.auxiliary_climatisation):
-                        request_id=self._requests.get('climatisation', 0)
+                        #request_id=self._requests.get('climatisation', 0)
                         data={}
                         return await self._set_climater(modeLc, data, spin)
                     elif self._requests['climatisation'].get('id', False) or self.electric_climatisation:
-                        request_id=self._requests.get('climatisation', 0)
+                        #request_id=self._requests.get('climatisation', 0)
                         modeLc = 'stop'
                         data={}
                         return await self._set_climater(modeLc, data, spin)
@@ -1261,13 +1261,15 @@ class Vehicle:
         if not self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False) and mode in {'auxiliary_start', 'auxiliary_stop'}:
             _LOGGER.info('Remote control of auxiliary heating functions is not supported.')
             raise SeatInvalidRequestException('Remote control of auxiliary heating functions is not supported.')
-        if self._requests['climatisation'].get('id', False):
-            timestamp = self._requests.get('climatisation', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('climatisation', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('A climatisation action is already in progress')
+        if self.checkForRunningRequests('climatisation'):
+            raise SeatRequestInProgressException('A climatisation action is already in progress')
+        #if self._requests['climatisation'].get('id', False):
+        #    timestamp = self._requests.get('climatisation', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('climatisation', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('A climatisation action is already in progress')
         try:
             self._requests['latest'] = 'Climatisation'
             response = await self._connection.setClimater(self.vin, self._apibase, mode, data, spin)
@@ -1282,6 +1284,20 @@ class Vehicle:
                     'status': response.get('state', 'Unknown'),
                     'id': response.get('id', 0),
                 }
+                # set the wanted state of the property affected by the request (for settings it's done in set_climatisation_one_setting())
+                if mode == 'start':
+                    self.setWantedStateOfProperty('climatisation', 'electric_climatisation', True)
+                elif mode == 'stop':
+                    self.setWantedStateOfProperty('climatisation', 'electric_climatisation', False)
+                elif mode == 'auxiliary_start':
+                    self.setWantedStateOfProperty('climatisation', 'auxiliary_climatisation', True)
+                elif mode == 'auxiliary_stop':
+                    self.setWantedStateOfProperty('climatisation', 'auxiliary_climatisation', False)
+                elif mode == 'windowHeater start':
+                    self.setWantedStateOfProperty('climatisation', 'window_heater', True)
+                elif mode == 'windowHeater stop':
+                    self.setWantedStateOfProperty('climatisation', 'window_heater', False)
+
                 # if firebaseStatus is FIREBASE_STATUS_ACTIVATED, the request is assumed successful. Waiting for push notification before rereading status
                 if self.firebaseStatus == FIREBASE_STATUS_ACTIVATED:
                     _LOGGER.debug('POST request for climater assumed successful. Waiting for push notification')
@@ -1320,6 +1336,7 @@ class Vehicle:
                 if actionSuccessful:
                     _LOGGER.debug('POST request for climater successful. New status as expected.')
                     self._requests.get('climatisation', {}).pop('id')
+                    self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
                     return True
                 _LOGGER.error('Response to POST request seemed successful but the climater status did not change as expected.')
                 return False
@@ -1445,13 +1462,15 @@ class Vehicle:
         """ Set climatisation timers. """
         if not self._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
             raise SeatInvalidRequestException('Climatisation timers are not supported.')
-        if self._requests['climatisationtimer'].get('id', False):
-            timestamp = self._requests.get('climatisationtimer', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('climatisationtimer', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Scheduling of climatisation timer is already in progress')
+        if self.checkForRunningRequests('climatisationtimer'):
+            raise SeatRequestInProgressException('Scheduling of climatisation timer is already in progress')
+        #if self._requests['climatisationtimer'].get('id', False):
+        #    timestamp = self._requests.get('climatisationtimer', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('climatisationtimer', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('Scheduling of climatisation timer is already in progress')
 
         try:
             self._requests['latest'] = 'Climatisationtimer'
@@ -1593,13 +1612,15 @@ class Vehicle:
         """ Set climatisation timers. """
         if not self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
             raise SeatInvalidRequestException('Auxiliary heating timers are not supported.')
-        if self._requests['climatisationtimer'].get('id', False):
-            timestamp = self._requests.get('climatisationtimer', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('climatisationtimer', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Scheduling of auxiliary heating timer is already in progress')
+        if self.checkForRunningRequests('climatisationtimer'):
+            raise SeatRequestInProgressException('Scheduling of auxiliary heating timer is already in progress')
+        #if self._requests['climatisationtimer'].get('id', False):
+        #    timestamp = self._requests.get('climatisationtimer', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('climatisationtimer', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('Scheduling of auxiliary heating timer is already in progress')
 
         try:
             self._requests['latest'] = 'Climatisationtimer'
@@ -1662,13 +1683,15 @@ class Vehicle:
         if not self.is_pheater_heating_supported:
             _LOGGER.error('No parking heater support.')
             raise SeatInvalidRequestException('No parking heater support.')
-        if self._requests['preheater'].get('id', False):
-            timestamp = self._requests.get('preheater', {}).get('timestamp', datetime.now())
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('preheater', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('A parking heater action is already in progress')
+        if self.checkForRunningRequests('preheater'):
+            raise SeatRequestInProgressException('A parking heater action is already in progress')
+        #if self._requests['preheater'].get('id', False):
+        #    timestamp = self._requests.get('preheater', {}).get('timestamp', datetime.now())
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('preheater', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('A parking heater action is already in progress')
         if not mode in ['heating', 'ventilation', 'off']:
             _LOGGER.error(f'{mode} is an invalid action for parking heater')
             raise SeatInvalidRequestException(f'{mode} is an invalid action for parking heater')
@@ -1706,13 +1729,15 @@ class Vehicle:
         if not self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False):
             _LOGGER.info('Remote lock/unlock is not supported.')
             raise SeatInvalidRequestException('Remote lock/unlock is not supported.')
-        if self._requests['lock'].get('id', False):
-            timestamp = self._requests.get('lock', {}).get('timestamp', datetime.now() - timedelta(minutes=5))
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('lock', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('A lock action is already in progress')
+        if self.checkForRunningRequests('lock'):
+            raise SeatRequestInProgressException('A lock action is already in progress')
+        #if self._requests['lock'].get('id', False):
+        #    timestamp = self._requests.get('lock', {}).get('timestamp', datetime.now() - timedelta(minutes=5))
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('lock', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('A lock action is already in progress')
         if action not in ['lock', 'unlock']:
             _LOGGER.error(f'Invalid lock action: {action}')
             raise SeatInvalidRequestException(f'Invalid lock action: {action}')
@@ -1766,13 +1791,15 @@ class Vehicle:
         if not self._relevantCapabilties.get('honkAndFlash', {}).get('active', False):
             _LOGGER.info('Remote honk and flash is not supported.')
             raise SeatInvalidRequestException('Remote honk and flash is not supported.')
-        if self._requests['honkandflash'].get('id', False):
-            timestamp = self._requests.get('honkandflash', {}).get('timestamp', datetime.now() - timedelta(minutes=2))
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('honkandflash', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('A honk and flash action is already in progress')
+        if self.checkForRunningRequests('honkandflash'):
+            raise SeatRequestInProgressException('A honk and flash is already in progress')
+        #if self._requests['honkandflash'].get('id', False):
+        #    timestamp = self._requests.get('honkandflash', {}).get('timestamp', datetime.now() - timedelta(minutes=2))
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('honkandflash', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('A honk and flash action is already in progress')
         if action == 'flash':
             operationCode = 'flash'
         elif action == 'honkandflash':
@@ -1823,13 +1850,15 @@ class Vehicle:
         if not self._relevantCapabilties.get('state', {}).get('active', False):
            _LOGGER.info('Data refresh is not supported.')
            raise SeatInvalidRequestException('Data refresh is not supported.')
-        if self._requests['refresh'].get('id', False):
-            timestamp = self._requests.get('refresh', {}).get('timestamp', datetime.now() - timedelta(minutes=5))
-            expired = datetime.now() - timedelta(minutes=1)
-            if expired > timestamp:
-                self._requests.get('refresh', {}).pop('id')
-            else:
-                raise SeatRequestInProgressException('Last data refresh request less than 3 minutes ago')
+        if self.checkForRunningRequests('refresh'):
+            raise SeatRequestInProgressException('Last data refresh request is less than 1 minute ago')
+        #if self._requests['refresh'].get('id', False):
+        #    timestamp = self._requests.get('refresh', {}).get('timestamp', datetime.now() - timedelta(minutes=5))
+        #    expired = datetime.now() - timedelta(minutes=1)
+        #    if expired > timestamp:
+        #        self._requests.get('refresh', {}).pop('id')
+        #    else:
+        #        raise SeatRequestInProgressException('Last data refresh request less than 3 minutes ago')
         try:
             self._requests['latest'] = 'Refresh'
             response = await self._connection.setRefresh(self.vin, self._apibase)
@@ -3856,12 +3885,7 @@ class Vehicle:
     @property
     def refresh_data(self) -> bool:
         """Get state of data refresh"""
-        if self._requests.get('refresh', {}).get('id', False):
-            timestamp = self._requests.get('refresh', {}).get('timestamp', DATEZERO)
-            expired = datetime.now() - timedelta(minutes=2)
-            if expired < timestamp:
-                return True
-        return False
+        return self.checkForRunningRequests('refresh')
 
     @property
     def is_refresh_data_supported(self) -> bool:
@@ -3979,6 +4003,65 @@ class Vehicle:
             default=serialize
         )
 
+    def checkForRunningRequests(self, requestType=None) -> bool:
+        if self._requests.get(requestType, None)==None:
+            raise SeatInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
+        if requestType in {'batterycharge', 'departuretimer','departureprofile', 'climatisationtimer', 'climatisation', 'preheater', 'lock', 'honkandflash'}:
+            waitTimeInMinutes=1
+            cleanLevel1=requestType
+        elif requestType in {'refresh'}:
+            waitTimeInMinutes=2
+            cleanLevel1=requestType
+        else:
+            raise SeatInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
+
+        if self._requests[requestType].get('id', False):
+            timestamp = self._requests.get(requestType, {}).get('timestamp', datetime.now())
+            expired = datetime.now() - timedelta(minutes=waitTimeInMinutes)
+            if expired > timestamp:
+                self._requests.get(requestType, {}).pop('id')
+                self.cleanWantedStateOfProperty(cleanLevel1) # clean the respective elements of self._wantedStateOfProperty
+                _LOGGER.info(f"State of a {requestType} request unknown more than {waitTimeInMinutes} minutes after its initiation. Assuming it's done.")
+                return False
+            else:
+                return True # there is a running request that has not expired yet
+        return False
+
+    def setWantedStateOfProperty(self, level1=None, level2=None, level3=None, value=None) -> bool:
+        if level1!=None:
+            if self._wantedStateOfProperty.get(level1, None)==None: 
+                if level2!=None:
+                    self._wantedStateOfProperty[level1]={}
+                    if self._wantedStateOfProperty.get(level2, None)==None: 
+                        if level3!=None:
+                            self._wantedStateOfProperty[level1][level2]={}
+            if level2!=None and level3!=None:
+                self._wantedStateOfProperty[level1][level2][level3]=value
+            elif level2!=None:
+                self._wantedStateOfProperty[level1][level2]=value
+            else:
+                self._wantedStateOfProperty[level1]=value
+            return True
+        else:
+            _LOGGER.warning('setWantedStateOfProperty() called with level1=None. Cannot set value.')
+        return False
+
+    def cleanWantedStateOfProperty(self, level1=None, level2=None, level3=None):
+        if level1!=None:
+            if level2!=None and level3!=None:
+                if self._wantedStateOfProperty.get(level1, {}).get(level2,{}).get(level3, None)!=None:
+                    self._wantedStateOfProperty[level1][level2].pop(level3)
+            elif level2!=None:
+                if self._wantedStateOfProperty.get(level1, {}).get(level2,None)!=None:
+                    self._wantedStateOfProperty[level1].pop(level2)
+            else:
+                if self._wantedStateOfProperty.get(level1, None)!=None:
+                    self._wantedStateOfProperty.pop(level1)
+            return True
+        else:
+            _LOGGER.warning('cleanWantedStateOfProperty() called with level1=None. Cannot clean that.')
+        return False
+
 
     async def stopFirebase(self) -> int:
         # Check if firebase is activated
@@ -4007,6 +4090,9 @@ class Vehicle:
             _LOGGER.debug('No use of firebase wanted.')
             self.firebaseStatus = FIREBASE_STATUS_NOT_WANTED
             return self.firebaseStatus
+        if '{vin}' in firebaseCredentialsFileName:
+            # if parameter firebaseCredentialsFileName contains {vin}, then substitute this by the vehicles vin
+            firebaseCredentialsFileName = firebaseCredentialsFileName.format(vin= self.vin)
         self._firebaseCredentialsFileName = firebaseCredentialsFileName
 
         # Check if firebase not already initialised
@@ -4156,12 +4242,13 @@ class Vehicle:
                 # Wait 5 seconds
                 await asyncio.sleep(5)
         elif type in ('charging-status-changed', 'charging-started', 'charging-stopped', 'charging-settings-updated', 'charging-charge-mode-changed', 'charging-settings-changed',
-                      'charging-event-status-started', 'charging-finished', 'charging-profile-changed'):
+                      'charging-event-status-started', 'charging-finished', 'charging-profile-changed', 'charging-target-soc-reached'):
             if self._requests.get('batterycharge', {}).get('id', None):
                 openRequest= self._requests.get('batterycharge', {}).get('id', None)
                 if openRequest == requestId:
                     _LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('batterycharge', {}).pop('id')
+                    self.cleanWantedStateOfProperty('charging') # clean the charging elements of self._wantedStateOfProperty
             if (self._last_get_charger < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the charging data only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 await self.get_charger()
@@ -4179,6 +4266,7 @@ class Vehicle:
                 if openRequest == requestId:
                     _LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('climatisation', {}).pop('id')
+                    self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
             if (self._last_get_climater < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the climatisation data only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 await self.get_climater()

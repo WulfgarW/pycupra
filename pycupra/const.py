@@ -123,12 +123,12 @@ AUTH_REFRESH = 'https://ola.prod.code.seat.cloud.vwgroup.com/authorization/api/v
 AUTH_TOKENKEYS = 'https://identity.vwgroup.io/oidc/v1/keys'                                         # Signing keys for tokens
 
 # API endpoints
-API_MBB_STATUSDATA = 'https://customer-profile.vwgroup.io/v3/customers/{self._user_id}/mbbStatusData'
-API_PERSONAL_DATA= 'https://customer-profile.vwgroup.io/v3/customers/{self._user_id}/personalData'
+API_MBB_STATUSDATA = 'https://customer-profile.vwgroup.io/v3/customers/{userId}/mbbStatusData'
+API_PERSONAL_DATA= 'https://customer-profile.vwgroup.io/v3/customers/{userId}/personalData'
 #Other option for personal data is '{baseurl}/v1/users/{self._user_id}'
 
-API_VEHICLES = '{APP_URI}/v2/users/{self._user_id}/garage/vehicles'                                  # Garage info
-API_MYCAR = '{baseurl}/v5/users/{self._user_id}/vehicles/{vin}/mycar'                                # Vehicle status report
+API_VEHICLES = '{APP_URI}/v2/users/{userId}/garage/vehicles'                                  # Garage info
+API_MYCAR = '{baseurl}/v5/users/{userId}/vehicles/{vin}/mycar'                                # Vehicle status report
 API_CHARGING = '{baseurl}/v1/vehicles/{vin}/charging'                                                # Vehicle charging information 
 API_CHARGING_PROFILES = '{baseurl}/vehicles/{vin}/charging/profiles'                                 # Vehicle charging profile information 
 #API_OPERLIST = '{homeregion}/api/rolesrights/operationlist/v3/vehicles/{vin}'                       # API Endpoint for supported operations
@@ -148,16 +148,16 @@ API_STATUS = '{baseurl}/v2/vehicles/{vin}/status'                               
 API_WARNINGLIGHTS = '{baseurl}/v3/vehicles/{vin}/warninglights'                                      # ???
 API_SHOP = '{baseurl}/v1/shop/vehicles/{vin}/articles'                                               # ???
 #API_ACTION = '{baseurl}/v1/vehicles/{vin}/{action}/requests/{command}'                               # Actions (e.g. ActionCharge="charging", ActionChargeStart="start",ActionChargeStop="stop")
-API_RELATION_STATUS = '{baseurl}/v1/users/{self._user_id}/vehicles/{vin}/relation-status'            # ???
-API_INVITATIONS = '{baseurl}/v1/user/{self._user_id}/invitations'                                    # ???
-API_CAPABILITIES = '{APP_URI}/v1/user/{self._user_id}/vehicle/{vin}/capabilities'                    # ???
+API_RELATION_STATUS = '{baseurl}/v1/users/{userId}/vehicles/{vin}/relation-status'            # ???
+API_INVITATIONS = '{baseurl}/v1/user/{userId}/invitations'                                    # ???
+API_CAPABILITIES = '{APP_URI}/v1/user/{userId}/vehicle/{vin}/capabilities'                    # ???
 #API_CAPABILITIES_MANAGEMENT = '{API_CAPABILITIES}/management'                                        # ???
 API_IMAGE = '{baseurl}/v2/vehicles/{vin}/renders'
 API_HONK_AND_FLASH = '{baseurl}//v1/vehicles/{vin}/honk-and-flash'
 API_ACCESS = '{baseurl}//v1/vehicles/{vin}/access/{action}'                                          # to lock or unlock vehicle
 API_REQUESTS = '{baseurl}/vehicles/{vin}/{capability}/requests'
 API_REFRESH = '{baseurl}/v1/vehicles/{vin}/vehicle-wakeup/request'
-API_SECTOKEN = '{baseurl}/v2/users/{self._user_id}/spin/verify'
+API_SECTOKEN = '{baseurl}/v2/users/{userId}/spin/verify'
 API_DESTINATION = '{baseurl}/v1/users/vehicles/{vin}/destination'
 API_LITERALS= '{APP_URI}/v1/content/apps/my-cupra/literals/{language}'                               # Message texts in different langauages, e.g. 'en_GB'
 API_ACTIONS = '{baseurl}/v1/vehicles/{vin}/{capability}/actions'                           # capability e.g. 'charging', mode (e.g. 'update-settings') will be added as postfix
@@ -172,7 +172,7 @@ API_AUXILIARYHEATING = '{baseurl}/v1/vehicles/{vin}/auxiliary-heating'          
 
 API_CONNECTION= '{APP_URI}/vehicles/{vin}/connection'
 #API_CONSENTS='{APP_URI}/v1/users/{self._user_id}/consents'
-API_PSP='{baseurl}/v2/users/{self._user_id}/vehicles/{vin}/psp'     # primary service provider (Werkstatt)
+API_PSP='{baseurl}/v2/users/{userId}/vehicles/{vin}/psp'     # primary service provider (Werkstatt)
 API_USER_INFO= 'https://identity-userinfo.vwgroup.io/oidc/userinfo' #{"sub":"xxx","name":"xxx","given_name":"xxx","family_name":"xxx","nickname":"xxx","email":"###","email_verified":true,"birthdate":"###","updated_at":123456789,"picture":"https://customer-pictures.vwgroup.io/v1/###/profile-picture"}
 
 PUBLIC_MODEL_IMAGES_SERVER = 'prod-ola-public-bucket.s3.eu-central-1.amazonaws.com'                      # non-indivdual model images are on this server

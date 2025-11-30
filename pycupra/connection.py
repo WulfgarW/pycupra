@@ -196,7 +196,7 @@ class Connection:
 
     def writeTokenFile(self, brand):
         if not hasattr(self, '_tokenFile'):
-            _LOGGER.info('No token file name provided. Cannot write tokens to file.')
+            _LOGGER.debug('No token file name provided. Therefore tokens were not written to file.')
             return False
         self._session_tokens[brand]['user_id']=self._user_id
         try:
@@ -210,7 +210,7 @@ class Connection:
 
     def deleteTokenFile(self):
         if not hasattr(self, '_tokenFile'):
-            _LOGGER.debug('No token file name provided. Cannot delete token file.')
+            _LOGGER.debug('No token file name provided. Therefore token file (if one exists) was not deleted.')
             return False
         try:
             os.remove(self._tokenFile)
@@ -710,7 +710,7 @@ class Connection:
                     res = response
                 elif response.status == 200 and method==METH_DELETE:
                     res = response
-                elif response.status >= 200 or response.status <= 300:
+                elif 200 <= response.status <= 299:
                     # If this is a revoke token url, expect Content-Length 0 and return
                     if int(response.headers.get('Content-Length', 0)) == 0 and 'revoke' in url:
                         if response.status == 200:
@@ -804,7 +804,7 @@ class Connection:
         userData={}
         #API_PERSONAL_DATA liefert fast das gleiche wie API_USER_INFO aber etwas weniger
         try:
-            response = await self.get(eval(f"f'{API_PERSONAL_DATA}'"))
+            response = await self.get(API_PERSONAL_DATA.format(userId= self._user_id))
             if response.get('nickname'):
                 userData= response
             else:
@@ -813,7 +813,7 @@ class Connection:
             _LOGGER.debug('Could not fetch personal information.')
 
         try:
-            response = await self.get(eval(f"f'{API_USER_INFO}'"))
+            response = await self.get(API_USER_INFO)
             if response.get('name'):
                 userData = response
             else:
@@ -830,7 +830,7 @@ class Connection:
         try:
             await self.set_token(self._session_auth_brand)
             #_LOGGER.debug('Achtung! getConsentInfo auskommentiert')
-            response = await self.get(eval(f"f'{API_MBB_STATUSDATA}'"))
+            response = await self.get(API_MBB_STATUSDATA.format(userId=self._user_id))
             if response.get('profileCompleted','incomplete'):
                 if response.get('profileCompleted',False):
                     _LOGGER.debug('User consent is valid, no missing information for profile')
@@ -855,13 +855,13 @@ class Connection:
 
         # Fetch vehicles
         try:
-            legacy_vehicles = await self.get(eval(f"f'{API_VEHICLES}'"))
+            legacy_vehicles = await self.get(API_VEHICLES.format(APP_URI=APP_URI, userId=self._user_id))
             if legacy_vehicles.get('vehicles', False):
                 _LOGGER.debug('Found vehicle(s) associated with account.')
                 for vehicle in legacy_vehicles.get('vehicles'):
                     vin = vehicle.get('vin', '')
                     self.addToAnonymisationDict(vin,'[VIN_ANONYMISED]')
-                    response = await self.get(eval(f"f'{API_CAPABILITIES}'"))
+                    response = await self.get(API_CAPABILITIES.format(APP_URI=APP_URI, userId=self._user_id, vin=vin))
                     #self._session_headers['Accept'] = 'application/json'
                     if response.get('capabilities', False):
                         vehicle["capabilities"]=response.get('capabilities')
@@ -873,7 +873,7 @@ class Connection:
                         else:
                             _LOGGER.warning(f"Initialising vehicle without capabilities.")
                             vehicle["capabilities"]=[]
-                    response = await self.get(eval(f"f'{API_CONNECTION}'"))
+                    response = await self.get(API_CONNECTION.format(APP_URI=APP_URI, vin=vin))
                     #self._session_headers['Accept'] = 'application/json'
                     if response.get('connection', False):
                         vehicle["connectivities"]=response.get('connection')
@@ -969,7 +969,7 @@ class Connection:
         await self.set_token(self._session_auth_brand)
         data={}
         try:
-            response = await self.get(eval(f"f'{API_MYCAR}'"))
+            response = await self.get(API_MYCAR.format(baseurl=baseurl, userId=self._user_id, vin=vin))
             if response.get('engines', {}):
                 data['mycar']= response
             elif response.get('status_code', {}):
@@ -987,7 +987,7 @@ class Connection:
         await self.set_token(self._session_auth_brand)
         data={}
         try:
-            response = await self.get(eval(f"f'{API_MILEAGE}'"))
+            response = await self.get(API_MILEAGE.format(baseurl=baseurl, vin=vin))
             if response.get('mileageKm', {}):
                 data['mileage'] = response
             elif response.get('status_code', {}):
@@ -1005,7 +1005,7 @@ class Connection:
         await self.set_token(self._session_auth_brand)
         data={}
         try:
-            response = await self.get(eval(f"f'{API_WARNINGLIGHTS}'"))
+            response = await self.get(API_WARNINGLIGHTS.format(baseurl=baseurl, vin=vin))
             if 'statuses' in response:
                 data['warninglights'] = response
             elif response.get('status_code', {}):
@@ -1042,7 +1042,7 @@ class Connection:
         try:
             try:
                 response = await self.get(
-                    url=eval(f"f'{API_IMAGE}'"),
+                    url=API_IMAGE.format(baseurl=baseurl, vin=vin),
                 )
                 if response.get('front',False):
                     images: dict[str, str] ={}
@@ -1091,7 +1091,7 @@ class Connection:
         data={}
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_STATUS}'"))
+            response = await self.get(API_STATUS.format(baseurl=baseurl, vin=vin))
             if response.get('doors', False):
                 data['status']= response
             elif response.get('status_code', {}):
@@ -1109,7 +1109,7 @@ class Connection:
         data={}
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_MAINTENANCE}'"))
+            response = await self.get(API_MAINTENANCE.format(baseurl=baseurl, vin=vin))
             if response.get('inspectionDueDays', {}):
                 data['maintenance'] = response
             elif response.get('status_code', {}):
@@ -1135,7 +1135,7 @@ class Connection:
             data: dict[str, dict] ={'tripstatistics': {}} 
             if supportsCyclicTrips:
                 dataType='CYCLIC'
-                response = await self.get(eval(f"f'{API_TRIP}'"))
+                response = await self.get(API_TRIP.format(baseurl=baseurl, vin=vin, dataType=dataType, startDate=startDate))
                 if response.get('data', []):
                     data['tripstatistics']['cyclic']= response.get('data', [])
                 elif response.get('status_code', {}):
@@ -1149,7 +1149,7 @@ class Connection:
                 # If connection was not initialised with parameter tripStatisticsStartDate, then 360 day is used for the CYCLIC trips and 90 days for the SHORT trips
                 # (This keeps the statistics shorter in Home Assistant)
                 startDate = (datetime.now() - timedelta(days= 90)).strftime('%Y-%m-%d')
-            response = await self.get(eval(f"f'{API_TRIP}'"))
+            response = await self.get(API_TRIP.format(baseurl=baseurl, vin=vin, dataType=dataType, startDate=startDate))
             if response.get('data', []):
                 data['tripstatistics']['short']= response.get('data', [])
             elif response.get('status_code', {}):
@@ -1166,7 +1166,7 @@ class Connection:
         """Get position data."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_POSITION}'"))
+            response = await self.get(API_POSITION.format(baseurl=baseurl, vin=vin))
             if response.get('lat', {}):
                 data = {
                     'findCarResponse': response,
@@ -1176,7 +1176,7 @@ class Connection:
                     apiKeyForGoogle= self._googleApiKey
                     lat= response.get('lat', 0)
                     lon= response.get('lon', 0)
-                    response = await self.get(eval(f"f'{API_POS_TO_ADDRESS}'"))
+                    response = await self.get(API_POS_TO_ADDRESS.format(lat=lat, lon=lon, apiKeyForGoogle=apiKeyForGoogle))
                     if response.get('routes', []):
                         if response.get('routes', [])[0].get('legs', False):
                             data['findCarResponse']['position_to_address'] = response.get('routes', [])[0].get('legs',[])[0].get('start_address','')
@@ -1201,7 +1201,7 @@ class Connection:
         """Get climatisation timers."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_CLIMATISATION_TIMERS}'"))
+            response = await self.get(API_CLIMATISATION_TIMERS.format(baseurl=baseurl, vin=vin))
             if response.get('timers', 0)!=0: #check if element 'timers' present, even if empty
                 data={}
                 data['climatisationTimers'] = response
@@ -1218,7 +1218,7 @@ class Connection:
         """Get departure timers."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_DEPARTURE_TIMERS}'"))
+            response = await self.get(API_DEPARTURE_TIMERS.format(baseurl=baseurl, vin=vin))
             if response.get('timers', {}):
                 data={}
                 data['departureTimers'] = response
@@ -1235,7 +1235,7 @@ class Connection:
         """Get departure timers."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_DEPARTURE_PROFILES}'"))
+            response = await self.get(API_DEPARTURE_PROFILES.format(baseurl=baseurl, vin=vin))
             if response.get('timers', {}):
                 for e in range(len(response.get('timers', []))):
                     if response['timers'][e].get('singleTimer','')==None:
@@ -1260,7 +1260,7 @@ class Connection:
         data = {'climater': oldClimatingData}
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'{API_CLIMATER_STATUS}'"))
+            response = await self.get(API_CLIMATER_STATUS.format(baseurl=baseurl, vin=vin))
             if response.get('climatisationStatus', {}) or response.get('auxiliaryHeatingStatus', {}):
                 data['climater']['status']=response
             elif response.get('status_code', {}):
@@ -1270,7 +1270,7 @@ class Connection:
         except Exception as error:
             _LOGGER.warning(f'Could not fetch climatisation status, error: {error}')
         try:
-            response = await self.get(eval(f"f'{API_CLIMATER}/settings'"))
+            response = await self.get((API_CLIMATER+'/settings').format(baseurl=baseurl, vin=vin))
             if response.get('targetTemperatureInCelsius', {}):
                 data['climater']['settings']=response
             elif response.get('status_code', {}):
@@ -1293,21 +1293,21 @@ class Connection:
             chargingInfo = {}
             #chargingModes = {}
             chargingProfiles = {}
-            response = await self.get(eval(f"f'{API_CHARGING}/status'"))
+            response = await self.get((API_CHARGING+'/status').format(baseurl=baseurl, vin=vin))
             if response.get('battery', {}):
                 chargingStatus = response
             elif response.get('status_code', {}):
                 _LOGGER.warning(f'Could not fetch charging status, HTTP status code: {response.get("status_code")}')
             else:
                 _LOGGER.info('Unhandled error while trying to fetch charging status')
-            response = await self.get(eval(f"f'{API_CHARGING}/info'"))
+            response = await self.get((API_CHARGING+'/info').format(baseurl=baseurl, vin=vin))
             if response.get('settings', {}):
                 chargingInfo = response
             elif response.get('status_code', {}):
                 _LOGGER.warning(f'Could not fetch charging info, HTTP status code: {response.get("status_code")}')
             else:
                 _LOGGER.info('Unhandled error while trying to fetch charging info')
-            """response = await self.get(eval(f"f'{API_CHARGING}/modes'"))
+            """response = await self.get((API_CHARGING+'/modes').format(baseurl=baseurl, vin=vin))
             if response.get('battery', {}):
                 chargingModes = response
             elif response.get('status_code', {}):
@@ -1315,7 +1315,7 @@ class Connection:
             else:
                 _LOGGER.info('Unhandled error while trying to fetch charging modes')"""
             if chargingProfilesActivated:
-                response = await self.get(eval(f"f'{API_CHARGING_PROFILES}'"))
+                response = await self.get(API_CHARGING_PROFILES.format(baseurl=baseurl, vin=vin))
                 if response.get('profiles', 0)!=0:
                     chargingProfiles = response
                 elif response.get('status_code', {}):
@@ -1349,7 +1349,7 @@ class Connection:
         """Get parking heater data."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(eval(f"f'URL_not_yet_known'"))
+            response = await self.get(f"f'URL_not_yet_known'")
             if response.get('statusResponse', {}):
                 data = {'heating': response.get('statusResponse', {})}
                 return data
@@ -1363,67 +1363,11 @@ class Connection:
 
  #### API data set functions ####
     #async def get_request_status(self, vin, sectionId, requestId, baseurl):
-        """Return status of a request ID for a given section ID."""
-        """try:
-            error_code = None
-            # Requests for VW-Group API
-            if sectionId == 'climatisation':
-                capability='climatisation'
-                url = eval(f"f'{API_REQUESTS}'")
-            elif sectionId == 'batterycharge':
-                capability='charging'
-                url = eval(f"f'{API_REQUESTS}'")
-            elif sectionId == 'departuretimer':
-                capability='departure-timers'
-                url = eval(f"f'{API_REQUESTS}'")
-            elif sectionId == 'vsr':
-                capability='status'
-                url = eval(f"f'{API_REQUESTS}'")
-            elif sectionId == 'rhf':
-                capability='honkandflash'
-                url = eval(f"f'{API_REQUESTS}/status'")
-            else:
-                capability='unknown'
-                url = eval(f"f'{API_REQUESTS}'")
-
-            response = await self.get(url)
-            # Pre-heater on older cars
-            if response.get('requestStatusResponse', {}).get('status', False):
-                result = response.get('requestStatusResponse', {}).get('status', False)
-            # Electric charging, climatisation and departure timers
-            elif response.get('action', {}).get('actionState', False):
-                result = response.get('action', {}).get('actionState', False)
-                error_code = response.get('action', {}).get('errorCode', None)
-            else:
-                result = 'Unknown'
-            # Translate status messages to meaningful info
-            if result in ['request_in_progress', 'queued', 'fetched', 'InProgress', 'Waiting']:
-                status = 'In progress'
-            elif result in ['request_fail', 'failed']:
-                status = 'Failed'
-                if error_code is not None:
-                    # Identified error code for charging, 11 = not connected
-                    if sectionId == 'charging' and error_code == 11:
-                        _LOGGER.info(f'Request failed, charger is not connected')
-                    else:
-                        _LOGGER.info(f'Request failed with error code: {error_code}')
-            elif result in ['unfetched', 'delayed', 'PollingTimeout']:
-                status = 'No response'
-            elif result in [ "FailPlugDisconnected", "FailTimerChargingActive" ]:
-                status = "Unavailable"
-            elif result in ['request_successful', 'succeeded', "Successful"]:
-                status = 'Success'
-            else:
-                status = result
-            return status
-        except Exception as error:
-            _LOGGER.warning(f'Failure during get request status: {error}')
-            raise SeatException(f'Failure during get request status: {error}')"""
-
+ 
     async def get_sec_token(self, spin, baseurl) -> str:
         """Get a security token, required for certain set functions."""
         data = {'spin': spin}
-        url = eval(f"f'{API_SECTOKEN}'")
+        url = API_SECTOKEN.format(baseurl=baseurl, userId=self._user_id)
         response = await self.post(url, json=data, allow_redirects=True)
         if response.get('securityToken', False):
             return response['securityToken']
@@ -1549,12 +1493,12 @@ class Connection:
         """Start/Stop charger or change settings."""
         if mode in {'start', 'stop'}:
             capability='charging'
-            return await self._setViaAPI(eval(f"f'{API_REQUESTS}/{mode}'"))
+            return await self._setViaAPI((API_REQUESTS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode))
         elif mode=='settings':
-            return await self._setViaAPI(eval(f"f'{API_CHARGING}/{mode}'"), json=data)
+            return await self._setViaAPI((API_CHARGING+"/{mode}").format(baseurl=baseurl, vin=vin, mode=mode), json=data)
         elif mode=='update-settings' or mode=='update-battery-care':
             capability='charging'
-            return await self._setViaAPI(eval(f"f'{API_ACTIONS}/{mode}'"), json=data)
+            return await self._setViaAPI((API_ACTIONS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode), json=data)
         else:
             _LOGGER.error(f'Not yet implemented. Mode: {mode}. Command ignored')
             raise
@@ -1569,27 +1513,27 @@ class Connection:
                 pass
             if mode == "stop": # Stop climatisation
                 capability='climatisation'
-                return await self._setViaAPI(eval(f"f'{API_REQUESTS}/stop'"))
+                return await self._setViaAPI((API_REQUESTS+'/stop').format(baseurl=baseurl, vin=vin, capability=capability))
             elif mode == "settings": # Set target temperature
                 capability='climatisation'
-                return await self._setViaAPI(eval(f"f'{API_CLIMATER}/settings'"), json=data)
+                return await self._setViaAPI((API_CLIMATER+'/settings').format(baseurl=baseurl, vin=vin), json=data)
             elif mode == "windowHeater stop": # Stop window heater
                 capability='windowheating'
-                return await self._setViaAPI(eval(f"f'{API_REQUESTS}/stop'"))
+                return await self._setViaAPI((API_REQUESTS+'/stop').format(baseurl=baseurl, vin=vin, capability=capability))
             elif mode == "windowHeater start": # Stop window heater
                 capability='windowheating'
-                return await self._setViaAPI(eval(f"f'{API_REQUESTS}/start'"))
+                return await self._setViaAPI((API_REQUESTS+'/start').format(baseurl=baseurl, vin=vin, capability=capability))
             elif mode == "start": # Start climatisation
-                return await self._setViaAPI(eval(f"f'{API_CLIMATER}/start'"), json = data)
+                return await self._setViaAPI((API_CLIMATER+'/start').format(baseurl=baseurl, vin=vin), json = data)
             elif mode == "auxiliary_start": # Start auxiliary climatisation
                 # Fetch security token 
                 self._session_headers['SecToken']= await self.get_sec_token(spin=spin, baseurl=baseurl)
-                response = await self._setViaAPI(eval(f"f'{API_AUXILIARYHEATING}/start'"), json = data)
+                response = await self._setViaAPI((API_AUXILIARYHEATING+'/start').format(baseurl=baseurl, vin=vin), json = data)
                 # Clean up headers
                 self._session_headers.pop('SecToken')
                 return response
             elif mode == "auxiliary_stop": # Stop auxiliary climatisation
-                return await self._setViaAPI(eval(f"f'{API_AUXILIARYHEATING}/stop'"))
+                return await self._setViaAPI((API_AUXILIARYHEATING+'/stop').format(baseurl=baseurl, vin=vin))
             else: # Unknown modes
                 _LOGGER.error(f'Unbekannter setClimater mode: {mode}. Command ignored')
                 return False
@@ -1601,7 +1545,7 @@ class Connection:
         """Set climatisation timers."""
         try:
             capability = 'climatisation'
-            url= eval(f"f'{API_REQUESTS}/timers'")
+            url= (API_REQUESTS+'/timers').format(baseurl=baseurl, vin=vin)
             return await self._setViaPUTtoAPI(url, json = data)
         except:
             raise
@@ -1611,7 +1555,7 @@ class Connection:
         """Set climatisation timers."""
         try:
             capability = 'auxiliary-heating'
-            url= eval(f"f'{API_AUXILIARYHEATING}/timers'")
+            url= (API_AUXILIARYHEATING+'/timers').format(baseurl=baseurl, vin=vin)
             
             # Fetch security token 
             self._session_headers['SecToken']= await self.get_sec_token(spin=spin, baseurl=baseurl)
@@ -1629,7 +1573,7 @@ class Connection:
     async def setDeparturetimer(self, vin, baseurl, data, spin) -> dict | bool:
         """Set departure timers."""
         try:
-            url= eval(f"f'{API_DEPARTURE_TIMERS}'")
+            url= API_DEPARTURE_TIMERS.format(baseurl=baseurl, vin=vin)
             if data:
                 if data.get('minSocPercentage',False):
                     url=url+'/settings'
@@ -1641,7 +1585,7 @@ class Connection:
     async def setDepartureprofile(self, vin, baseurl, data, spin) -> dict | bool:
         """Set departure profiles."""
         try:
-            url= eval(f"f'{API_DEPARTURE_PROFILES}'")
+            url= API_DEPARTURE_PROFILES.format(baseurl=baseurl, vin=vin)
             #if data:
                 #if data.get('minSocPercentage',False):
                 #    url=url+'/settings'
@@ -1655,7 +1599,7 @@ class Connection:
 
         await self.set_token(self._session_auth_brand)
         try:
-            url= eval(f"f'{API_DESTINATION}'")
+            url= API_DESTINATION.format(baseurl=baseurl, vin=vin)
             response = await self._request(METH_PUT, url, json=data)
             if response.status==202: #[202 Accepted]
                 _LOGGER.debug(f'Destination {data[0]} successfully sent to API.')
@@ -1687,7 +1631,7 @@ class Connection:
 
     async def setHonkAndFlash(self, vin, baseurl, data) -> dict | bool:
         """Execute honk and flash actions."""
-        return await self._setViaAPI(eval(f"f'{API_HONK_AND_FLASH}'"), json = data)
+        return await self._setViaAPI(API_HONK_AND_FLASH.format(baseurl=baseurl, vin=vin), json = data)
 
     async def setLock(self, vin, baseurl, action, spin) -> dict | bool:
         """Remote lock and unlock actions."""
@@ -1695,7 +1639,7 @@ class Connection:
             # Fetch security token 
             self._session_headers['SecToken']= await self.get_sec_token(spin=spin, baseurl=baseurl)
 
-            response = await self._setViaAPI(eval(f"f'{API_ACCESS}'"))
+            response = await self._setViaAPI(API_ACCESS.format(baseurl=baseurl, vin=vin, action=action))
 
             # Clean up headers
             self._session_headers.pop('SecToken')
@@ -1713,7 +1657,7 @@ class Connection:
             # Fetch security token 
             self._session_headers['SecToken']= await self.get_sec_token(spin=spin, baseurl=baseurl)
 
-            response = await self._setViaAPI(eval(f"f'url_not_yet_known'"), json = data)
+            response = await self._setViaAPI(f"f'url_not_yet_known'", json = data)
 
             # Clean up headers
             self._session_headers.pop('SecToken')
@@ -1727,7 +1671,7 @@ class Connection:
 
     async def setRefresh(self, vin, baseurl) -> dict | bool:
         """"Force vehicle data update."""
-        return await self._setViaAPI(eval(f"f'{API_REFRESH}'"))
+        return await self._setViaAPI(API_REFRESH.format(baseurl=baseurl, vin=vin))
 
  #### Token handling ####
     async def validate_token(self, token) -> datetime:

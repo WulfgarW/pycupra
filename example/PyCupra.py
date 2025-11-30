@@ -30,7 +30,7 @@ PRINTRESPONSE = True
 INTERVAL = 5
 TOKEN_FILE_NAME_AND_PATH='./pycupra_token.json'
 CREDENTIALS_FILE_NAME_AND_PATH='./pycupra_credentials.json'
-FIREBASE_CREDENTIALS_FILE_NAME_AND_PATH='./pycupra_firebase_credentials.json'
+FIREBASE_CREDENTIALS_FILE_NAME_AND_PATH='./pycupra_firebase_credentials_{vin}.json'
 ALL_ATTRIBUTES_FILE_NAME_AND_PATH='./pycupra_all_attributes.txt'
 
 
@@ -652,7 +652,7 @@ async def main():
             #await demo_set_charger_target_soc(vehicle, value=70)                      # value = 1-100
             #await demo_set_battery_care(vehicle, value=True)                           # value = False or True
 
-            await demo_set_climatisation(vehicle, action = "start", temp=18.0)        # action = "electric", "start", "auxiliary_start",  or "off". spin is S-PIN and only needed for aux heating
+            #await demo_set_climatisation(vehicle, action = "start", temp=18.0)        # action = "electric", "start", "auxiliary_start",  or "off". spin is S-PIN and only needed for aux heating
             #await demo_set_windowheating(vehicle, action = "stop")                    # action = "start" or "stop"
             #await demo_set_climatisation_one_setting(vehicle, 
             #    settingName = 'targetTemperatureInCelsius', value = 18.0)              # set climatisation temperature 
