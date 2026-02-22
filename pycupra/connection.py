@@ -32,18 +32,18 @@ from base64 import b64decode, b64encode, urlsafe_b64decode, urlsafe_b64encode
 from .utilities import json_loads
 from .vehicle import Vehicle
 from .exceptions import (
-    SeatConfigException,
-    SeatAuthenticationException,
-    SeatAccountLockedException,
-    SeatTokenExpiredException,
-    SeatException,
-    SeatEULAException,
-    SeatMarketingConsentException,
-    SeatThrottledException,
-    SeatLoginFailedException,
-    SeatInvalidRequestException,
-    SeatRequestInProgressException,
-    SeatServiceUnavailable
+    PyCupraConfigException,
+    PyCupraAuthenticationException,
+    PyCupraAccountLockedException,
+    PyCupraTokenExpiredException,
+    PyCupraException,
+    PyCupraEULAException,
+    PyCupraMarketingConsentException,
+    PyCupraThrottledException,
+    PyCupraLoginFailedException,
+    PyCupraInvalidRequestException,
+    PyCupraRequestInProgressException,
+    PyCupraServiceUnavailable
 )
 
 from requests_oauthlib import OAuth2Session
@@ -187,7 +187,7 @@ class Connection:
                 self._LOGGER.error(f'Directory {self._dataBasePath} does not exist. This should only happen once. Creating it.')
                 os.mkdir(self._dataBasePath)
         except Exception as error:
-            raise SeatException(f'Error while checking for data folders and creating them if bot already present. Error: {error}')
+            raise PyCupraException(f'Error while checking for data folders and creating them if bot already present. Error: {error}')
 
     def _clear_cookies(self):
         self._session._cookie_jar._cookies.clear()
@@ -356,7 +356,7 @@ class Connection:
                             self._LOGGER.info(f'Unable to login, {error}')
                         else:
                             self._LOGGER.info(f'Unable to login.')
-                        raise SeatException(error)
+                        raise PyCupraException(error)
                     else:
                         if self._session_fulldebug:
                             self._LOGGER.debug(f'Got authorization endpoint: "{ref}"')
@@ -367,12 +367,12 @@ class Connection:
                         )
                 else:
                     self._LOGGER.warning(f'Unable to fetch authorization endpoint')
-                    raise SeatException('Missing "location" header')
-            except (SeatException):
+                    raise PyCupraException('Missing "location" header')
+            except (PyCupraException):
                 raise
             except Exception as error:
                 self._LOGGER.warning(f'Failed to get authorization endpoint. {error}')
-                raise SeatException(error)
+                raise PyCupraException(error)
 
             # If we need to sign in (first token)
             if 'signin-service' in ref:
@@ -387,21 +387,21 @@ class Connection:
                 maxDepth = 10
                 while not location.startswith(CLIENT_LIST[client].get('REDIRECT_URL')):
                     if location is None:
-                        raise SeatException('Login failed')
+                        raise PyCupraException('Login failed')
                     if 'error' in location:
                         errorTxt = parse_qs(urlparse(location).query).get('error', '')[0]
                         if errorTxt == 'login.error.throttled':
                             timeout = parse_qs(urlparse(location).query).get('enableNextButtonAfterSeconds', '')[0]
-                            raise SeatAccountLockedException(f'Account is locked for another {timeout} seconds')
+                            raise PyCupraAccountLockedException(f'Account is locked for another {timeout} seconds')
                         elif errorTxt == 'login.errors.password_invalid':
-                            raise SeatAuthenticationException('Invalid credentials')
+                            raise PyCupraAuthenticationException('Invalid credentials')
                         else:
                             self._LOGGER.warning(f'Login failed: {errorTxt}')
-                        raise SeatLoginFailedException(errorTxt)
+                        raise PyCupraLoginFailedException(errorTxt)
                     if 'terms-and-conditions' in location:
-                        raise SeatEULAException('The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
+                        raise PyCupraEULAException('The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
                     if 'consent/marketing' in location:
-                        raise SeatMarketingConsentException('The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
+                        raise PyCupraMarketingConsentException('The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
                     if 'user_id' in location: # Get the user_id which is needed for some later requests
                         self._user_id=parse_qs(urlparse(location).query).get('user_id', [''])[0]
                         self.addToAnonymisationDict(self._user_id,'[USER_ID_ANONYMISED]')
@@ -415,13 +415,13 @@ class Connection:
                     )
                     if response.headers.get('Location', False) is False:
                         self._LOGGER.debug(f'Unexpected response: {await req.text()}')
-                        raise SeatAuthenticationException('User appears unauthorized')
+                        raise PyCupraAuthenticationException('User appears unauthorized')
                     location = response.headers.get('Location', None)
                     # Set a max limit on requests to prevent forever loop
                     maxDepth -= 1
                     if maxDepth == 0:
-                        raise SeatException('Too many redirects')
-            except (SeatException, SeatEULAException, SeatAuthenticationException, SeatAccountLockedException, SeatLoginFailedException):
+                        raise PyCupraException('Too many redirects')
+            except (PyCupraException, PyCupraEULAException, PyCupraAuthenticationException, PyCupraAccountLockedException, PyCupraLoginFailedException):
                 self._LOGGER.warning(f'Running into login problems with location={location}')
                 raise
             except Exception as e:
@@ -432,7 +432,7 @@ class Connection:
                     pass
                 else:
                     self._LOGGER.debug(f'Exception occured while logging in.')
-                    raise SeatLoginFailedException(e)
+                    raise PyCupraLoginFailedException(e)
 
             self._LOGGER.debug('Received authorization code, exchange for tokens.')
             # Extract code and tokens
@@ -482,9 +482,9 @@ class Connection:
                 errorTxt = self._session_tokens[client].get('error', '')
                 if 'error_description' in self._session_tokens[client]:
                     error_description = self._session_tokens[client].get('error_description', '')
-                    raise SeatException(f'{errorTxt} - {error_description}')
+                    raise PyCupraException(f'{errorTxt} - {error_description}')
                 else:
-                    raise SeatException(errorTxt)
+                    raise PyCupraException(errorTxt)
             if self._session_fulldebug:
                 for key in self._session_tokens.get(client, {}):
                     if 'token' in key:
@@ -499,19 +499,19 @@ class Connection:
                 self._LOGGER.warning(f'Token for {client} could not be verified, verification returned {verify}.')
             loop = asyncio.get_running_loop()
             rt = await loop.run_in_executor(None, self.writeTokenFile, client)
-        except (SeatEULAException):
+        except (PyCupraEULAException):
             self._LOGGER.warning('Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again')
             raise
-        except (SeatMarketingConsentException):
+        except (PyCupraMarketingConsentException):
             self._LOGGER.warning('Login failed, the marketing conditions might have been updated and need to be accepted or disagreed. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again')
             raise
-        except (SeatAccountLockedException):
+        except (PyCupraAccountLockedException):
             self._LOGGER.warning('Your account is locked, probably because of too many incorrect login attempts. Make sure that your account is not in use somewhere with incorrect password')
             raise
-        except (SeatAuthenticationException):
+        except (PyCupraAuthenticationException):
             self._LOGGER.warning('Invalid credentials or invalid configuration. Make sure you have entered the correct credentials')
             raise
-        except (SeatException):
+        except (PyCupraException):
             self._LOGGER.error('An API error was encountered during login, try again later')
             raise
         except (TypeError):
@@ -531,7 +531,7 @@ class Connection:
             responseSoup = BeautifulSoup(response_data, 'html.parser')
             form_data = dict()
             if responseSoup is None:
-                raise SeatLoginFailedException('Login failed, server did not return a login form')
+                raise PyCupraLoginFailedException('Login failed, server did not return a login form')
             for t in responseSoup.find('form', id='emailPasswordForm').find_all('input', type='hidden'):
                 if self._session_fulldebug:
                     self._LOGGER.debug(f'Extracted form attribute: {t["name"], t["value"]}')
@@ -552,7 +552,7 @@ class Connection:
             data = form_data
         )
         if req.status != 200:
-            raise SeatException('Authorization request failed')
+            raise PyCupraException('Authorization request failed')
         try:
             response_data = await req.text()
             responseSoup = BeautifulSoup(response_data, 'html.parser')
@@ -577,20 +577,20 @@ class Connection:
                         jsondata = json.loads(data.groups()[0])
                         self._LOGGER.debug(self.anonymise(f'JSON: {jsondata}'))
                         if not jsondata.get('hmac', False):
-                            raise SeatLoginFailedException('Failed to extract login hmac attribute')
+                            raise PyCupraLoginFailedException('Failed to extract login hmac attribute')
                         if not jsondata.get('postAction', False):
-                            raise SeatLoginFailedException('Failed to extract login post action attribute')
+                            raise PyCupraLoginFailedException('Failed to extract login post action attribute')
                         if jsondata.get('error', None) is not None:
-                            raise SeatLoginFailedException(f'Login failed with error: {jsondata.get("error", None)}')
+                            raise PyCupraLoginFailedException(f'Login failed with error: {jsondata.get("error", None)}')
                         form_data['hmac'] = jsondata.get('hmac', '')
                         post_action = jsondata.get('postAction')
             else:
-                raise SeatLoginFailedException('Failed to extract login form data')
+                raise PyCupraLoginFailedException('Failed to extract login form data')
             form_data['password'] = self._session_auth_password
-        except (SeatLoginFailedException) as e:
+        except (PyCupraLoginFailedException) as e:
             raise
         except Exception as e:
-            raise SeatAuthenticationException("Invalid username or service unavailable")
+            raise PyCupraAuthenticationException("Invalid username or service unavailable")
 
         # POST password
         self._session_auth_headers[client]['Referer'] = pe_url
@@ -916,7 +916,7 @@ class Connection:
 
         # If neither API returns any vehicles, raise an error
         if len(api_vehicles) == 0:
-            raise SeatConfigException("No vehicles were found for given account!")
+            raise PyCupraConfigException("No vehicles were found for given account!")
         # Get vehicle connectivity information
         else:
             try:
@@ -955,7 +955,7 @@ class Connection:
                         self._LOGGER.debug(self.anonymise(f'Adding vehicle {vin}, with connectivities: {vehicle.get('connectivities')}'))
                         self._vehicles.append(Vehicle(self, newVehicle))
             except:
-                raise SeatLoginFailedException("Unable to fetch associated vehicles for account")
+                raise PyCupraLoginFailedException("Unable to fetch associated vehicles for account")
 
         # Update data for all vehicles
         await self.update_all()
@@ -1452,7 +1452,7 @@ class Connection:
         if response.get('securityToken', False):
             return response['securityToken']
         else:
-            raise SeatException('Did not receive a valid security token. Maybewrong SPIN?' )
+            raise PyCupraException('Did not receive a valid security token. Maybewrong SPIN?' )
 
     async def _setViaAPI(self, endpoint, **data) -> dict | bool:
         """Data call to API to set a value or to start an action."""
@@ -1461,9 +1461,9 @@ class Connection:
             url = endpoint 
             response = await self._data_call(url, **data)
             if not response:
-                raise SeatException(f'Invalid or no response for endpoint {endpoint}')
+                raise PyCupraException(f'Invalid or no response for endpoint {endpoint}')
             elif response == 429:
-                raise SeatThrottledException('Action rate limit reached. Start the car to reset the action limit')
+                raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
                 data = {'id': '', 'state' : ''}
                 if 'requestId' in response:
@@ -1494,9 +1494,9 @@ class Connection:
             url = endpoint 
             response = await self._request(METH_PUT,url, **data)
             if not response:
-                raise SeatException(f'Invalid or no response for endpoint {endpoint}')
+                raise PyCupraException(f'Invalid or no response for endpoint {endpoint}')
             elif response == 429:
-                raise SeatThrottledException('Action rate limit reached. Start the car to reset the action limit')
+                raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
                 data = {'id': '', 'state' : ''}
                 if 'requestId' in response:
@@ -1546,7 +1546,7 @@ class Connection:
                 return response
             else:
                 self._LOGGER.debug(f'API did not successfully delete subscription.')
-                raise SeatException(f'Invalid or no response for endpoint {url}')
+                raise PyCupraException(f'Invalid or no response for endpoint {url}')
                 return response
         except aiohttp.client_exceptions.ClientResponseError as error:
             self._LOGGER.debug(f'Request failed. Id: {id}, HTTP request headers: {self._session_headers}')
@@ -1686,7 +1686,7 @@ class Connection:
                 return response
             else:
                 self._LOGGER.debug(f'API did not successfully receive destination.')
-                raise SeatException(f'Invalid or no response for endpoint {url}')
+                raise PyCupraException(f'Invalid or no response for endpoint {url}')
                 return response
         except aiohttp.client_exceptions.ClientResponseError as error:
             self._LOGGER.debug(f'Request failed. Data: {data}, HTTP request headers: {self._session_headers}')
@@ -1917,7 +1917,7 @@ class Connection:
 
                     # If authorization wasn't successful
                     if result is not True:
-                        raise SeatAuthenticationException(f'Failed to authorize client {client}')
+                        raise PyCupraAuthenticationException(f'Failed to authorize client {client}')
                 except:
                     raise
             try:
@@ -1927,7 +1927,7 @@ class Connection:
                     self._LOGGER.debug(f'Tokens for "{client}" are invalid')
                     # Try to refresh tokens for client
                     if await self.refresh_token(client) is not True:
-                        raise SeatTokenExpiredException(f'Tokens for client {client} are invalid')
+                        raise PyCupraTokenExpiredException(f'Tokens for client {client} are invalid')
                     else:
                         self._LOGGER.debug(f'Tokens refreshed successfully for client "{client}"')
                         pass
@@ -1939,7 +1939,7 @@ class Connection:
                 # Assign token to authorization header
                 self._session_headers['Authorization'] = 'Bearer ' + self._session_tokens[client]['access_token']
             except:
-                raise SeatException(f'Failed to set token for "{client}"')
+                raise PyCupraException(f'Failed to set token for "{client}"')
             return True
 
     def readSumTripStatisticsFile(self, vin: str, sumType: str):
@@ -1973,7 +1973,7 @@ class Connection:
                     csvfile.close()
         except Exception as error:
             self._LOGGER.error(self.anonymise(f"Error while reading {sumType} sum trip statistics file for vehicle {vin}. Error: {error}."))
-            raise SeatException(self.anonymise(f"Error while trying to read {sumType} sum trip statistics file for vehicle {vin}"))
+            raise PyCupraException(self.anonymise(f"Error while trying to read {sumType} sum trip statistics file for vehicle {vin}"))
 
     def writeSumTripStatisticsFile(self, vehicle: Vehicle, sumType: str):
         try:
@@ -2016,7 +2016,7 @@ class Connection:
             self._LOGGER.debug(self.anonymise(f"Wrote {sumType} sum trip statistics file for vehicle {vehicle.vin}."))
         except Exception as error:
             self._LOGGER.error(self.anonymise(f"Error while writing {sumType} sum trip statistics file for vehicle {vehicle.vin}. Error: {error}."))
-            raise SeatException(self.anonymise(f"Error while trying to write {sumType} sum trip statistics to file for vehicle {vehicle.vin}"))
+            raise PyCupraException(self.anonymise(f"Error while trying to write {sumType} sum trip statistics to file for vehicle {vehicle.vin}"))
 
     def updateDailySumTripStatistics(self, newTripData: dict,vin: str) -> bool:
         self._LOGGER.debug(self.anonymise(f'Updating daily sum trip statistics for vehicle {vin}'))

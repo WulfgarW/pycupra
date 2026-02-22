@@ -232,6 +232,9 @@ class Number(Instrument):
     def __init__(self, attr, name, icon):
         super().__init__(component="number", attr=attr, name=name, icon=icon)
 
+    def configurate(self, **config):
+        self.mutable = config.get('mutable', False)
+
     @property
     def is_mutable(self) -> bool:
         return self.mutable
@@ -293,10 +296,10 @@ class TargetStateOfChargeNumber(Number):
 
     @property
     def value(self):
-        #if self.vehicle._requests.get('climatisation', {}).get('id', False):
-        #    self._LOGGER.debug('A climatisation request is active. Setting the climatisation target temperature to new wanted state (if present).')
-        #    if self.vehicle._wantedStateOfProperty.get('climatisation',{}).get('settings',{}).get('climatisation_target_temperature', None)!=None:
-        #        return self.vehicle._wantedStateOfProperty.get('climatisation',{}).get('settings',{}).get('climatisation_target_temperature', None)
+        if self.vehicle._requests.get('batterycharge', {}).get('id', False):
+            self._LOGGER.debug('A charging request is active. Setting the target soc number entity to new wanted state (if present).')
+            if self.vehicle._wantedStateOfProperty.get('batterycharge',{}).get('settings', {}).get('target_soc', None):
+                return self.vehicle._wantedStateOfProperty.get('batterycharge',{}).get('settings', {}).get('target_soc', 0)
         return self.vehicle.target_soc
 
     async def set_value(self, newValue):

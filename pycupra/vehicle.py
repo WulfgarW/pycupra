@@ -13,13 +13,13 @@ from json import dumps as to_json
 from collections import OrderedDict
 from .utilities import find_path, is_valid_path, datetime2string
 from .exceptions import (
-    SeatConfigException,
-    SeatException,
-    SeatEULAException,
-    SeatServiceUnavailable,
-    SeatThrottledException,
-    SeatInvalidRequestException,
-    SeatRequestInProgressException
+    PyCupraConfigException,
+    PyCupraException,
+    PyCupraEULAException,
+    PyCupraServiceUnavailable,
+    PyCupraThrottledException,
+    PyCupraInvalidRequestException,
+    PyCupraRequestInProgressException
 )
 from .const import (
     APP_URI,
@@ -101,6 +101,7 @@ class Vehicle:
             'vehicleLights': {'active': False, 'reason': 'not supported'},
             'auxiliaryHeating': {'active': False, 'reason': 'not supported', 'supportsTargetTemperatureInStartAuxiliaryHeating': False},
             'geofence': {'active': False, 'reason': 'not supported'},
+            'vehicleWakeUp': {'active': False, 'reason': 'not supported'},
         }
 
         self._last_full_update = datetime.now(tz=None) - timedelta(seconds=1200)
@@ -269,7 +270,7 @@ class Vehicle:
                 self._LOGGER.debug(f'Performed full update for vehicle with VIN {self._connection.anonymise(self.vin)}.')
                 self._LOGGER.debug(f'So far about {self._connection._sessionRequestCounter} API calls since {self._connection._sessionRequestTimestamp}.')
             except:
-                raise SeatException("Update failed")
+                raise PyCupraException("Update failed")
             return True
         else:
             self._LOGGER.info(f'Vehicle with VIN {self._connection.anonymise(self.vin)} is deactivated.')
@@ -473,7 +474,7 @@ class Vehicle:
                             data = {'maxChargeCurrentAcInAmperes': int(value)}
                 else:
                     self._LOGGER.error(f'Set charger maximum current to {value} is not supported.')
-                    raise SeatInvalidRequestException(f'Set charger maximum current to {value} is not supported.')
+                    raise PyCupraInvalidRequestException(f'Set charger maximum current to {value} is not supported.')
             # Mimick app and set charger max ampere to Maximum/Reduced
             elif isinstance(value, str):
                 if value in ['Maximum', 'maximum', 'Max', 'max', 'Minimum', 'minimum', 'Min', 'min', 'Reduced', 'reduced']:
@@ -483,10 +484,10 @@ class Vehicle:
                         data = {'maxChargeCurrentAc': value}
                 else:
                     self._LOGGER.error(f'Set charger maximum current to {value} is not supported.')
-                    raise SeatInvalidRequestException(f'Set charger maximum current to {value} is not supported.')
+                    raise PyCupraInvalidRequestException(f'Set charger maximum current to {value} is not supported.')
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
-                raise SeatInvalidRequestException(f'Invalid data type.')
+                raise PyCupraInvalidRequestException(f'Invalid data type.')
             if data.get('maxChargeCurrentAc',None):
                 # set the new wanted state of the property slow_charge to be changed by the request
                 newValue = False
@@ -496,7 +497,7 @@ class Vehicle:
             return await self.set_charger('settings', data)
         else:
             self._LOGGER.error('No charger support.')
-            raise SeatInvalidRequestException('No charger support.')
+            raise PyCupraInvalidRequestException('No charger support.')
 
     async def set_charger_target_soc(self, value) -> bool:
         """Set target state of charge"""
@@ -508,7 +509,7 @@ class Vehicle:
                         data= deepcopy(self.attrs.get('charging',{}).get('info',{}).get('settings',{}))
                         if data=={}:
                             self._LOGGER.error(f'Can not set target soc, because currently no charging settings are present.')
-                            raise SeatInvalidRequestException(f'Set target soc not possible. Charging settings not present.')
+                            raise PyCupraInvalidRequestException(f'Set target soc not possible. Charging settings not present.')
                         data['targetSoc'] = int(value)
                         action = 'settings'
                         if self._properties.get('platform','')=='MOD4': # I assume, that for platform=MOD4 the call is different
@@ -521,15 +522,16 @@ class Vehicle:
                         return False
                 else:
                     self._LOGGER.error(f'Set target soc to {value} is not supported.')
-                    raise SeatInvalidRequestException(f'Set target soc to {value} is not supported.')
+                    raise PyCupraInvalidRequestException(f'Set target soc to {value} is not supported.')
             # Mimick app and set charger max ampere to Maximum/Reduced
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
-                raise SeatInvalidRequestException(f'Invalid data type.')
+                raise PyCupraInvalidRequestException(f'Invalid data type.')
+                self.setWantedStateOfProperty('batterycharge', 'settings', 'target_soc', value=int(value))
             return await self.set_charger(action, data)
         else:
             self._LOGGER.error('No charger support.')
-            raise SeatInvalidRequestException('No charger support.')
+            raise PyCupraInvalidRequestException('No charger support.')
 
     async def set_battery_care(self, value) -> bool:
         """Set battery care setting"""
@@ -543,20 +545,20 @@ class Vehicle:
                     return False
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
-                raise SeatInvalidRequestException(f'Invalid data type.')
+                raise PyCupraInvalidRequestException(f'Invalid data type.')
             self.setWantedStateOfProperty('batterycharge', 'settings', 'charging_battery_care', value=value)
             return await self.set_charger('update-battery-care', data)
         else:
             self._LOGGER.error('No charger support.')
-            raise SeatInvalidRequestException('No charger support.')
+            raise PyCupraInvalidRequestException('No charger support.')
 
     async def set_charger(self, action, data=None) -> bool:
         """Charging actions."""
         if not self._relevantCapabilties.get('charging', {}).get('active', False):
             self._LOGGER.info('Remote start/stop of charger is not supported.')
-            raise SeatInvalidRequestException('Remote start/stop of charger is not supported.')
+            raise PyCupraInvalidRequestException('Remote start/stop of charger is not supported.')
         if self.checkForRunningRequests('batterycharge'):
-            raise SeatRequestInProgressException('Charging action already in progress')
+            raise PyCupraRequestInProgressException('Charging action already in progress')
         if self._relevantCapabilties.get('charging', {}).get('active', False):
             if action in ['start', 'Start', 'On', 'on']:
                 mode='start'
@@ -570,14 +572,14 @@ class Vehicle:
                 mode=action
             else:
                 self._LOGGER.error(f'Invalid charger action: {action}. Must be either start, stop or setSettings')
-                raise SeatInvalidRequestException(f'Invalid charger action: {action}. Must be either start, stop or setSettings')
+                raise PyCupraInvalidRequestException(f'Invalid charger action: {action}. Must be either start, stop or setSettings')
         try:
             self._requests['latest'] = 'Charger'
             response = await self._connection.setCharger(self.vin, self._apibase, mode, data)
             if not response:
                 self._requests['batterycharge'] = {'status': 'Failed'}
                 self._LOGGER.error(f'Failed to call charging action {action}')
-                raise SeatException(f'Failed to call charging action {action}')
+                raise PyCupraException(f'Failed to call charging action {action}')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['batterycharge'] = {
@@ -626,12 +628,12 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the charging status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to call charging action: {action} - error: {error}')
             self._requests['batterycharge'] = {'status': 'Exception'}
-            raise SeatException(f'Failed to execute set charger - error: {error}')
+            raise PyCupraException(f'Failed to execute set charger - error: {error}')
 
    # API endpoint departuretimer
     async def set_charge_limit(self, limit=50) -> bool:
@@ -640,7 +642,7 @@ class Vehicle:
             not self._relevantCapabilties.get('departureProfiles', {}).get('active', False) and 
             not self._relevantCapabilties.get('charging', {}).get('active', False)):
             self._LOGGER.info('Set charging limit is not supported.')
-            raise SeatInvalidRequestException('Set charging limit is not supported.')
+            raise PyCupraInvalidRequestException('Set charging limit is not supported.')
         if self._relevantCapabilties.get('departureTimers', {}).get('active', False) :
             # Vehicle has departure timers
             data = {}
@@ -648,9 +650,9 @@ class Vehicle:
                 if limit in [0, 10, 20, 30, 40, 50]:
                     data['minSocPercentage'] = limit
                 else:
-                    raise SeatInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
+                    raise PyCupraInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
             else:
-                raise SeatInvalidRequestException(f'Charge limit "{limit}" is not supported.')
+                raise PyCupraInvalidRequestException(f'Charge limit "{limit}" is not supported.')
             return await self._set_timers(data)
         elif self._relevantCapabilties.get('departureProfiles', {}).get('active', False):
             # Vehicle has departure profiles
@@ -659,9 +661,9 @@ class Vehicle:
                 if limit in [0, 10, 20, 30, 40, 50]:
                     data['minSocPercentage'] = limit
                 else:
-                    raise SeatInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
+                    raise PyCupraInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
             else:
-                raise SeatInvalidRequestException(f'Charge limit "{limit}" is not supported.')
+                raise PyCupraInvalidRequestException(f'Charge limit "{limit}" is not supported.')
             return await self._set_departure_profiles(data, action='minSocPercentage')
         return False
 
@@ -670,7 +672,7 @@ class Vehicle:
         data: dict[str, Any] = {}
         supported = "is_departure" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support timer id {id}.')
+            raise PyCupraConfigException(f'This vehicle does not support timer id {id}.')
         if self._relevantCapabilties.get('departureTimers', {}).get('active', False):
             allTimers= self.attrs.get('departureTimers').get('timers', [])
             for singleTimer in allTimers:
@@ -686,12 +688,12 @@ class Vehicle:
                         }
                         data['timers'].append(singleTimer)
                     else:
-                        raise SeatInvalidRequestException(f'Timer action "{action}" is not supported.')
+                        raise PyCupraInvalidRequestException(f'Timer action "{action}" is not supported.')
                     converted_data = datetime2string(data) # datetime to string
                     return await self._set_timers(converted_data)
-            raise SeatInvalidRequestException(f'Departure timer id {id} not found.')
+            raise PyCupraInvalidRequestException(f'Departure timer id {id} not found.')
         else:
-            raise SeatInvalidRequestException('Departure timers are not supported.')
+            raise PyCupraInvalidRequestException('Departure timers are not supported.')
 
     async def set_timer_schedule(self, id, schedule={}) -> bool:
         """ Set departure timer schedule. """
@@ -699,67 +701,67 @@ class Vehicle:
         # Validate required user inputs
         supported = "is_departure" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'Timer id {id} is not supported for this vehicle.')
+            raise PyCupraConfigException(f'Timer id {id} is not supported for this vehicle.')
         else:
             self._LOGGER.debug(f'Timer id {id} is supported')
         if not schedule:
-            raise SeatInvalidRequestException('A schedule must be set.')
+            raise PyCupraInvalidRequestException('A schedule must be set.')
         if not isinstance(schedule.get('enabled', ''), bool):
-            raise SeatInvalidRequestException('The enabled variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The enabled variable must be set to True or False.')
         if not isinstance(schedule.get('recurring', ''), bool):
-            raise SeatInvalidRequestException('The recurring variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The recurring variable must be set to True or False.')
         if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('time', '')):
-            raise SeatInvalidRequestException('The time for departure must be set in 24h format HH:MM.')
+            raise PyCupraInvalidRequestException('The time for departure must be set in 24h format HH:MM.')
 
         # Validate optional inputs
         if schedule.get('recurring', False):
             if not re.match('^[yn]{7}$', schedule.get('days', '')):
-                raise SeatInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
+                raise PyCupraInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
         elif not schedule.get('recurring'):
             if not re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', schedule.get('date', '')):
-                raise SeatInvalidRequestException('For single departure schedule the date variable must be set to YYYY-mm-dd.')
+                raise PyCupraInvalidRequestException('For single departure schedule the date variable must be set to YYYY-mm-dd.')
 
         if self._relevantCapabilties.get('departureTimers', {}).get('active', False):
             # Sanity check for off-peak hours
             if not isinstance(schedule.get('nightRateActive', False), bool):
-                raise SeatInvalidRequestException('The off-peak active variable must be set to True or False')
+                raise PyCupraInvalidRequestException('The off-peak active variable must be set to True or False')
             if schedule.get('nightRateStart', None) is not None:
                 if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('nightRateStart', '')):
-                    raise SeatInvalidRequestException('The start time for off-peak hours must be set in 24h format HH:MM.')
+                    raise PyCupraInvalidRequestException('The start time for off-peak hours must be set in 24h format HH:MM.')
             if schedule.get('nightRateEnd', None) is not None:
                 if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('nightRateEnd', '')):
-                    raise SeatInvalidRequestException('The start time for off-peak hours must be set in 24h format HH:MM.')
+                    raise PyCupraInvalidRequestException('The start time for off-peak hours must be set in 24h format HH:MM.')
 
             # Check if charging/climatisation is set and correct
             if not isinstance(schedule.get('operationClimatisation', False), bool):
-                raise SeatInvalidRequestException('The climatisation enable variable must be set to True or False')
+                raise PyCupraInvalidRequestException('The climatisation enable variable must be set to True or False')
             if not isinstance(schedule.get('operationCharging', False), bool):
-                raise SeatInvalidRequestException('The charging variable must be set to True or False')
+                raise PyCupraInvalidRequestException('The charging variable must be set to True or False')
 
             # Validate temp setting, if set
             if schedule.get("targetTemp", None) is not None:
                 if not 16 <= int(schedule.get("targetTemp", None)) <= 30:
-                    raise SeatInvalidRequestException('Target temp must be integer value from 16 to 30')
+                    raise PyCupraInvalidRequestException('Target temp must be integer value from 16 to 30')
                 else:
                     data['temp'] = int(schedule.get('targetTemp'))
-                    raise SeatInvalidRequestException('Target temp (yet) not supported.')
+                    raise PyCupraInvalidRequestException('Target temp (yet) not supported.')
 
             # Validate charge target and current
             if schedule.get("targetChargeLevel", None) is not None:
                 if not 0 <= int(schedule.get("targetChargeLevel", None)) <= 100:
-                    raise SeatInvalidRequestException('Target charge level must be 0 to 100')
+                    raise PyCupraInvalidRequestException('Target charge level must be 0 to 100')
                 else:
-                    raise SeatInvalidRequestException('targetChargeLevel (yet) not supported.')
+                    raise PyCupraInvalidRequestException('targetChargeLevel (yet) not supported.')
             if schedule.get("chargeMaxCurrent", None) is not None:
-                raise SeatInvalidRequestException('chargeMaxCurrent (yet) not supported.')
+                raise PyCupraInvalidRequestException('chargeMaxCurrent (yet) not supported.')
                 if isinstance(schedule.get('chargeMaxCurrent', None), str):
                     if not schedule.get("chargeMaxCurrent", None) in ['Maximum', 'maximum', 'Max', 'max', 'Minimum', 'minimum', 'Min', 'min', 'Reduced', 'reduced']:
-                        raise SeatInvalidRequestException('Charge current must be one of Maximum/Minimum/Reduced')
+                        raise PyCupraInvalidRequestException('Charge current must be one of Maximum/Minimum/Reduced')
                 elif isinstance(schedule.get('chargeMaxCurrent', None), int):
                     if not 1 <= int(schedule.get("chargeMaxCurrent", 254)) < 255:
-                        raise SeatInvalidRequestException('Charge current must be set from 1 to 254')
+                        raise PyCupraInvalidRequestException('Charge current must be set from 1 to 254')
                 else:
-                    raise SeatInvalidRequestException('Invalid type for charge max current variable')
+                    raise PyCupraInvalidRequestException('Invalid type for charge max current variable')
             
             # Prepare data and execute
             data['id'] = id
@@ -818,14 +820,14 @@ class Vehicle:
             return await self._set_timers(data)
         else:
             self._LOGGER.info('Departure timers are not supported.')
-            raise SeatInvalidRequestException('Departure timers are not supported.')
+            raise PyCupraInvalidRequestException('Departure timers are not supported.')
 
     async def _set_timers(self, data=None) -> bool:
         """ Set departure timers. """
         if not self._relevantCapabilties.get('departureTimers', {}).get('active', False):
-            raise SeatInvalidRequestException('Departure timers are not supported.')
+            raise PyCupraInvalidRequestException('Departure timers are not supported.')
         if self.checkForRunningRequests('departuretimer'):
-            raise SeatRequestInProgressException('Scheduling of departure timer is already in progress')
+            raise PyCupraRequestInProgressException('Scheduling of departure timer is already in progress')
 
         try:
             self._requests['latest'] = 'Departuretimer'
@@ -833,7 +835,7 @@ class Vehicle:
             if not response:
                 self._requests['departuretimer'] = {'status': 'Failed'}
                 self._LOGGER.error('Failed to execute departure timer request')
-                raise SeatException('Failed to execute departure timer request')
+                raise PyCupraException('Failed to execute departure timer request')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['departuretimer'] = {
@@ -879,12 +881,12 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the departure timers status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute departure timer request - {error}')
             self._requests['departuretimer'] = {'status': 'Exception'}
-        raise SeatException('Failed to set departure timer schedule')
+        raise PyCupraException('Failed to set departure timer schedule')
 
     async def set_departure_profile_schedule(self, id, schedule={}) -> bool:
         """ Set departure profile schedule. """
@@ -892,25 +894,25 @@ class Vehicle:
         # Validate required user inputs
         supported = "is_departure_profile" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'Departure profile id {id} is not supported for this vehicle.')
+            raise PyCupraConfigException(f'Departure profile id {id} is not supported for this vehicle.')
         else:
             self._LOGGER.debug(f'Departure profile id {id} is supported')
         if not schedule:
-            raise SeatInvalidRequestException('A schedule must be set.')
+            raise PyCupraInvalidRequestException('A schedule must be set.')
         if not isinstance(schedule.get('enabled', ''), bool):
-            raise SeatInvalidRequestException('The enabled variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The enabled variable must be set to True or False.')
         if not isinstance(schedule.get('recurring', ''), bool):
-            raise SeatInvalidRequestException('The recurring variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The recurring variable must be set to True or False.')
         if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('time', '')):
-            raise SeatInvalidRequestException('The time for departure must be set in 24h format HH:MM.')
+            raise PyCupraInvalidRequestException('The time for departure must be set in 24h format HH:MM.')
 
         # Validate optional inputs
         if schedule.get('recurring', False):
             if not re.match('^[yn]{7}$', schedule.get('days', '')):
-                raise SeatInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
+                raise PyCupraInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
         elif not schedule.get('recurring'):
             if not re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', schedule.get('date', '')):
-                raise SeatInvalidRequestException('For single departure profile schedule the date variable must be set to YYYY-mm-dd.')
+                raise PyCupraInvalidRequestException('For single departure profile schedule the date variable must be set to YYYY-mm-dd.')
 
         if self._relevantCapabilties.get('departureProfiles', {}).get('active', False):
             # Check if profileIds is set and correct
@@ -923,12 +925,12 @@ class Vehicle:
                         found = True
                         break
                 if not found:
-                    raise SeatInvalidRequestException('The charging program id provided for the departure profile schedule is unknown.')
+                    raise PyCupraInvalidRequestException('The charging program id provided for the departure profile schedule is unknown.')
                 else:
                     profileIds = []
                     profileIds.append(chargingProgramId)
             else:
-                raise SeatInvalidRequestException('No charging program id provided for departure profile schedule.')
+                raise PyCupraInvalidRequestException('No charging program id provided for departure profile schedule.')
 
             newDepProfileSchedule = {}
             # Prepare data and execute
@@ -963,13 +965,13 @@ class Vehicle:
                         "startDateTime": datetime2string(startDateTime, True),
                         }
                 else:
-                    raise SeatInvalidRequestException('Vehicle does not support single timer.')
+                    raise PyCupraInvalidRequestException('Vehicle does not support single timer.')
             newDepProfileSchedule["profileIds"]= profileIds
 
             # Now we have to substitute the current departure profile schedule with the given id by the new one
             data= deepcopy(self.attrs.get('departureProfiles'))
             if len(data.get('timers', []))<1:
-                raise SeatInvalidRequestException(f'No timers found in departure profile: {data}.')
+                raise PyCupraInvalidRequestException(f'No timers found in departure profile: {data}.')
             idFound=False
             for e in range(len(data.get('timers', []))):
                 if data['timers'][e].get('id',-1)==id:
@@ -977,21 +979,21 @@ class Vehicle:
                     idFound=True
             if idFound:
                 return await self._set_departure_profiles(data, action='set')
-            raise SeatInvalidRequestException(f'Departure profile id {id} not found in {data.get('timers',[])}.')
+            raise PyCupraInvalidRequestException(f'Departure profile id {id} not found in {data.get('timers',[])}.')
         else:
             self._LOGGER.info('Departure profiles are not supported.')
-            raise SeatInvalidRequestException('Departure profiles are not supported.')
+            raise PyCupraInvalidRequestException('Departure profiles are not supported.')
 
     async def set_departure_profile_active(self, id=1, action='off') -> bool:
         """ Activate/deactivate departure profiles. """
         data = {}
         supported = "is_departure_profile" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support departure profile id "{id}".')
+            raise PyCupraConfigException(f'This vehicle does not support departure profile id "{id}".')
         if self._relevantCapabilties.get('departureProfiles', {}).get('active', False):
             data= deepcopy(self.attrs.get('departureProfiles'))
             if len(data.get('timers', []))<1:
-                raise SeatInvalidRequestException(f'No timers found in departure profile: {data}.')
+                raise PyCupraInvalidRequestException(f'No timers found in departure profile: {data}.')
             idFound=False
             for e in range(len(data.get('timers', []))):
                 if data['timers'][e].get('id',-1)==id:
@@ -1004,20 +1006,20 @@ class Vehicle:
                         idFound=True
                         self._LOGGER.debug(f'Changing departure profile {id} to {action}.')
                     else:
-                        raise SeatInvalidRequestException(f'Profile action "{action}" is not supported.')
+                        raise PyCupraInvalidRequestException(f'Profile action "{action}" is not supported.')
                     break
             if idFound:
                 return await self._set_departure_profiles(data, action=action)
-            raise SeatInvalidRequestException(f'Departure profile id {id} not found in {data.get('timers',[])}.')
+            raise PyCupraInvalidRequestException(f'Departure profile id {id} not found in {data.get('timers',[])}.')
         else:
-            raise SeatInvalidRequestException('Departure profiles are not supported.')
+            raise PyCupraInvalidRequestException('Departure profiles are not supported.')
 
     async def _set_departure_profiles(self, data=None, action=None) -> bool:
         """ Set departure profiles. """
         if not self._relevantCapabilties.get('departureProfiles', {}).get('active', False):
-            raise SeatInvalidRequestException('Departure profiles are not supported.')
+            raise PyCupraInvalidRequestException('Departure profiles are not supported.')
         if self.checkForRunningRequests('departureprofile'):
-            raise SeatRequestInProgressException('Scheduling of departure profile is already in progress')
+            raise PyCupraRequestInProgressException('Scheduling of departure profile is already in progress')
         try:
             self._requests['latest'] = 'Departureprofile'
             converted_data = datetime2string(data, True) # datetime to string
@@ -1025,7 +1027,7 @@ class Vehicle:
             if not response:
                 self._requests['departureprofile'] = {'status': 'Failed'}
                 self._LOGGER.error('Failed to execute departure profile request')
-                raise SeatException('Failed to execute departure profile request')
+                raise PyCupraException('Failed to execute departure profile request')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['departureprofile'] = {
@@ -1063,12 +1065,12 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to PUT request seemed successful but the departure profiles status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute departure profile request - {error}')
             self._requests['departureprofile'] = {'status': 'Exception'}
-        raise SeatException('Failed to set departure profile schedule')
+        raise PyCupraException('Failed to set departure profile schedule')
 
 
     # Send a destination to vehicle
@@ -1085,14 +1087,14 @@ class Vehicle:
             response = await self._connection.sendDestination(self.vin, self._apibase, data, spin=False)
             if not response:
                 self._LOGGER.error('Failed to execute send destination request')
-                raise SeatException('Failed to execute send destination request')
+                raise PyCupraException('Failed to execute send destination request')
             else:
                 return True
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute send destination request - {error}')
-        raise SeatException('Failed to send destination to vehicle')
+        raise PyCupraException('Failed to send destination to vehicle')
 
     # Climatisation electric/auxiliary/windows (CLIMATISATION)
 
@@ -1103,11 +1105,11 @@ class Vehicle:
                 data = {'action': {'type': action + 'WindowHeating'}}
             else:
                 self._LOGGER.error(f'Window heater action "{action}" is not supported.')
-                raise SeatInvalidRequestException(f'Window heater action "{action}" is not supported.')
+                raise PyCupraInvalidRequestException(f'Window heater action "{action}" is not supported.')
             return await self._set_climater(f'windowHeater {action}', data)
         else:
             self._LOGGER.error('No climatisation support.')
-            raise SeatInvalidRequestException('No climatisation support.')
+            raise PyCupraInvalidRequestException('No climatisation support.')
 
     async def set_climatisation_one_setting(self, settingName, value = False) -> bool:
         """Set one attribute in the climatisation settings to a new value."""
@@ -1117,11 +1119,11 @@ class Vehicle:
                 if settingName=='targetTemperatureInCelsius':
                     if float(value) < 16.0 or float(value) > 30.0:
                         self._LOGGER.error(f'The value {value} is not a valid temperature in °C for climatisation.')
-                        raise SeatInvalidRequestException(f'Setting temperature to {value} °C is not supported.')
+                        raise PyCupraInvalidRequestException(f'Setting temperature to {value} °C is not supported.')
                 if settingName=='targetTemperatureInFahrenheit':
                     if float(value) < 61.0 or float(value) > 86.0:
                         self._LOGGER.error(f'The value {value} is not a valid temperature in F for climatisation.')
-                        raise SeatInvalidRequestException(f'Setting temperature to {value} F is not supported.')
+                        raise PyCupraInvalidRequestException(f'Setting temperature to {value} F is not supported.')
                 data[settingName]= value
                 if settingName=='targetTemperatureInFahrenheit':
                     data['unitInCar'] = 'fahrenheit'
@@ -1145,7 +1147,7 @@ class Vehicle:
                     data.pop('unitInCar')
             else:
                 self._LOGGER.error(f'Set climatisation setting "{settingName}" to "{value} "is not supported.')
-                raise SeatInvalidRequestException(f'Set climatisation setting "{settingName}" to "{value} "is not supported.')
+                raise PyCupraInvalidRequestException(f'Set climatisation setting "{settingName}" to "{value} "is not supported.')
             if not self.checkForRunningRequests('climatisation'):
                 # set the wanted state of the property affected by the request
                 if settingName=='climatisationWithoutExternalPower':
@@ -1164,7 +1166,7 @@ class Vehicle:
             return await self._set_climater(mode, data)
         else:
             self._LOGGER.error(f'Could not find climatisation setting {settingName}.')
-            raise SeatInvalidRequestException(f'Cannot change climatisation setting {settingName}.')
+            raise PyCupraInvalidRequestException(f'Cannot change climatisation setting {settingName}.')
 
     async def set_climatisation(self, mode = 'off', temp = None, hvpower = None, spin = None) -> bool:
         """Turn on/off climatisation with electric/auxiliary heater."""
@@ -1173,20 +1175,20 @@ class Vehicle:
         # Validate user input
         if modeLc not in ['electric', 'auxiliary_start', 'auxiliary_stop', 'start', 'stop', 'on', 'off']:
             self._LOGGER.error(f"Invalid mode for 'set_climatisation': {mode}")
-            raise SeatInvalidRequestException(f"Invalid mode for set_climatisation: {mode}")
+            raise PyCupraInvalidRequestException(f"Invalid mode for set_climatisation: {mode}")
         elif modeLc == 'auxiliary' and spin is None:
-            raise SeatInvalidRequestException("Starting auxiliary heater requires provided S-PIN")
+            raise PyCupraInvalidRequestException("Starting auxiliary heater requires provided S-PIN")
         if temp is not None:
             if not isinstance(temp, float) and not isinstance(temp, int):
                 self._LOGGER.error(f"Invalid type for temp. type={type(temp)}")
-                raise SeatInvalidRequestException(f"Invalid type for temp")
+                raise PyCupraInvalidRequestException(f"Invalid type for temp")
             elif not 16 <= float(temp) <=30:
-                raise SeatInvalidRequestException(f"Invalid value for temp")
+                raise PyCupraInvalidRequestException(f"Invalid value for temp")
         else:
             temp = self.climatisation_target_temperature
         #if hvpower is not None:
         #    if not isinstance(hvpower, bool):
-        #        raise SeatInvalidRequestException(f"Invalid type for hvpower")
+        #        raise PyCupraInvalidRequestException(f"Invalid type for hvpower")
         if self.is_electric_climatisation_supported or self.is_auxiliary_climatisation_supported:
             if self._relevantCapabilties.get('climatisation', {}).get('active', False) or self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
                 if modeLc in ['start', 'electric', 'on']:
@@ -1221,25 +1223,25 @@ class Vehicle:
                         return False
         else:
             self._LOGGER.error('No climatisation support.')
-        raise SeatInvalidRequestException('No climatisation support.')
+        raise PyCupraInvalidRequestException('No climatisation support.')
 
     async def _set_climater(self, mode, data, spin = False) -> bool:
         """Climater actions."""
         if not self._relevantCapabilties.get('climatisation', {}).get('active', False) and mode in {'start', 'stop', 'windowHeater start', 'windowHeater stop'}:
             self._LOGGER.info('Remote control of climatisation functions is not supported.')
-            raise SeatInvalidRequestException('Remote control of climatisation functions is not supported.')
+            raise PyCupraInvalidRequestException('Remote control of climatisation functions is not supported.')
         if not self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False) and mode in {'auxiliary_start', 'auxiliary_stop'}:
             self._LOGGER.info('Remote control of auxiliary heating functions is not supported.')
-            raise SeatInvalidRequestException('Remote control of auxiliary heating functions is not supported.')
+            raise PyCupraInvalidRequestException('Remote control of auxiliary heating functions is not supported.')
         if self.checkForRunningRequests('climatisation'):
-            raise SeatRequestInProgressException('A climatisation action is already in progress')
+            raise PyCupraRequestInProgressException('A climatisation action is already in progress')
         try:
             self._requests['latest'] = 'Climatisation'
             response = await self._connection.setClimater(self.vin, self._apibase, mode, data, spin)
             if not response:
                 self._requests['climatisation'] = {'status': 'Failed'}
                 self._LOGGER.error('Failed to execute climatisation request')
-                raise SeatException('Failed to execute climatisation request')
+                raise PyCupraException('Failed to execute climatisation request')
             else:
                 #self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['climatisation'] = {
@@ -1303,23 +1305,23 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the climater status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute climatisation request - {error}')
             self._requests['climatisation'] = {'status': 'Exception'}
-        raise SeatException('Climatisation action failed')
+        raise PyCupraException('Climatisation action failed')
 
     async def set_climatisation_timer_active(self, id=1, action='off') -> bool:
         """ Activate/deactivate climatisation timers. """
         data: dict[str, Any] = {}
         supported = "is_climatisation_timer" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support climatisation timer id {id}.')
+            raise PyCupraConfigException(f'This vehicle does not support climatisation timer id {id}.')
         if self._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
             data= deepcopy(self.attrs.get('climatisationTimers'))
             if len(data.get('timers', []))<1:
-                raise SeatInvalidRequestException(f'No timers found in climatisationTimers: {data}.')
+                raise PyCupraInvalidRequestException(f'No timers found in climatisationTimers: {data}.')
             if data.get('carCapturedTimestamp',False):
                 data.pop('carCapturedTimestamp')
             if data.get('timeInCar', False):
@@ -1336,16 +1338,16 @@ class Vehicle:
                         idFound=True
                         self._LOGGER.debug(f'Changing climatisation timer {id} to {action}.')
                     else:
-                        raise SeatInvalidRequestException(f'Climatisation timer action "{action}" is not supported.')
+                        raise PyCupraInvalidRequestException(f'Climatisation timer action "{action}" is not supported.')
                     break
 
             if idFound:
                 converted_data = datetime2string(data, True) # datetime to string
                 return await self._set_climatisation_timers(converted_data)
             else:
-                raise SeatInvalidRequestException(f'Climatisation timer id {id} not found.')
+                raise PyCupraInvalidRequestException(f'Climatisation timer id {id} not found.')
         else:
-            raise SeatInvalidRequestException('Climatisation timers are not supported.')
+            raise PyCupraInvalidRequestException('Climatisation timers are not supported.')
 
     async def set_climatisation_timer_schedule(self, id, schedule={}) -> bool:
         """ Set climatisation timer schedule. """
@@ -1353,23 +1355,23 @@ class Vehicle:
         # Validate required user inputs
         supported = "is_climatisation_timer" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support climatisation timer id {id}.')
+            raise PyCupraConfigException(f'This vehicle does not support climatisation timer id {id}.')
         if not schedule:
-            raise SeatInvalidRequestException('A schedule must be set.')
+            raise PyCupraInvalidRequestException('A schedule must be set.')
         if not isinstance(schedule.get('enabled', ''), bool):
-            raise SeatInvalidRequestException('The enabled variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The enabled variable must be set to True or False.')
         if not isinstance(schedule.get('recurring', ''), bool):
-            raise SeatInvalidRequestException('The recurring variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The recurring variable must be set to True or False.')
         if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('time', '')):
-            raise SeatInvalidRequestException('The time for the timer must be set in 24h format HH:MM.')
+            raise PyCupraInvalidRequestException('The time for the timer must be set in 24h format HH:MM.')
 
         # Validate optional inputs
         if schedule.get('recurring', False):
             if not re.match('^[yn]{7}$', schedule.get('days', '')):
-                raise SeatInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
+                raise PyCupraInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
         elif not schedule.get('recurring'):
             if not re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', schedule.get('date', '')):
-                raise SeatInvalidRequestException('For single climatisation timer schedule the date variable must be set to YYYY-mm-dd.')
+                raise PyCupraInvalidRequestException('For single climatisation timer schedule the date variable must be set to YYYY-mm-dd.')
 
         if self._relevantCapabilties.get('climatisation', {}).get('active', False):
             newSchedule = {}
@@ -1403,7 +1405,7 @@ class Vehicle:
             # Now we have to substitute the current climatisation timer schedule with the given id by the new one
             data= deepcopy(self.attrs.get('climatisationTimers'))
             if len(data.get('timers', []))<1:
-                raise SeatInvalidRequestException(f'No timers found in climatisation timers: {data}.')
+                raise PyCupraInvalidRequestException(f'No timers found in climatisation timers: {data}.')
             if data.get('carCapturedTimestamp',False):
                 data.pop('carCapturedTimestamp')
             if data.get('timeInCar', False):
@@ -1416,17 +1418,17 @@ class Vehicle:
             if idFound:
                 converted_data = datetime2string(data, True) # datetime to string
                 return await self._set_climatisation_timers(converted_data)
-            raise SeatInvalidRequestException(f'Climatisation timer id {id} not found in {data.get('timers',[])}.')
+            raise PyCupraInvalidRequestException(f'Climatisation timer id {id} not found in {data.get('timers',[])}.')
         else:
             self._LOGGER.info('Climatisation timer are not supported.')
-            raise SeatInvalidRequestException('Climatisation timer are not supported.')
+            raise PyCupraInvalidRequestException('Climatisation timer are not supported.')
 
     async def _set_climatisation_timers(self, data=None, spin= False) -> bool:
         """ Set climatisation timers. """
         if not self._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            raise SeatInvalidRequestException('Climatisation timers are not supported.')
+            raise PyCupraInvalidRequestException('Climatisation timers are not supported.')
         if self.checkForRunningRequests('climatisationtimer'):
-            raise SeatRequestInProgressException('Scheduling of climatisation timer is already in progress')
+            raise PyCupraRequestInProgressException('Scheduling of climatisation timer is already in progress')
 
         try:
             self._requests['latest'] = 'Climatisationtimer'
@@ -1434,7 +1436,7 @@ class Vehicle:
             if not response:
                 self._requests['climatisationtimer'] = {'status': 'Failed'}
                 self._LOGGER.error('Failed to execute climatisation timer request')
-                raise SeatException('Failed to execute climatisation timer request')
+                raise PyCupraException('Failed to execute climatisation timer request')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['climatisationtimer'] = {
@@ -1467,19 +1469,19 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to PUT request seemed successful but the climatisation timers status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute climatisation timer request - {error}')
             self._requests['climatisationtimer'] = {'status': 'Exception'}
-        raise SeatException('Failed to set climatisation timer schedule')
+        raise PyCupraException('Failed to set climatisation timer schedule')
 
     async def set_auxiliary_heating_timer_active(self, id=1, action='off', spin= False) -> bool:
         """ Activate/deactivate auxiliary heating timers. """
         data: dict[str, Any] = {}
         supported = "is_climatisation_timer" + str(id) + "_supported" # the timers for auxiliary heating are climatisation timers, only changing them is different
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support climatisation timer id {id}.')
+            raise PyCupraConfigException(f'This vehicle does not support climatisation timer id {id}.')
         if self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
             allTimers= self.attrs.get('climatisationTimers',{}).get('timers', [])
             for singleTimer in allTimers:
@@ -1495,12 +1497,12 @@ class Vehicle:
                         }
                         data['timers'].append(singleTimer)
                     else:
-                        raise SeatInvalidRequestException(f'Auxiliary heatimg timer action "{action}" is not supported.')
+                        raise PyCupraInvalidRequestException(f'Auxiliary heatimg timer action "{action}" is not supported.')
                     converted_data = datetime2string(data, True) # datetime to string
                     return await self._set_auxiliary_heating_timers(converted_data, spin)
-            raise SeatInvalidRequestException(f'Climatisation timer id {id} not found.')
+            raise PyCupraInvalidRequestException(f'Climatisation timer id {id} not found.')
         else:
-            raise SeatInvalidRequestException('Changing of auxiliary heating timers not supported.')
+            raise PyCupraInvalidRequestException('Changing of auxiliary heating timers not supported.')
 
     async def set_auxiliary_heating_timer_schedule(self, id, schedule={}, spin= False) -> bool:
         """ Set climatisation timer schedule. """
@@ -1508,23 +1510,23 @@ class Vehicle:
         # Validate required user inputs
         supported = "is_climatisation_timer" + str(id) + "_supported"
         if getattr(self, supported) is not True:
-            raise SeatConfigException(f'This vehicle does not support climatisation timer id {id}.')
+            raise PyCupraConfigException(f'This vehicle does not support climatisation timer id {id}.')
         if not schedule:
-            raise SeatInvalidRequestException('A schedule must be set.')
+            raise PyCupraInvalidRequestException('A schedule must be set.')
         if not isinstance(schedule.get('enabled', ''), bool):
-            raise SeatInvalidRequestException('The enabled variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The enabled variable must be set to True or False.')
         if not isinstance(schedule.get('recurring', ''), bool):
-            raise SeatInvalidRequestException('The recurring variable must be set to True or False.')
+            raise PyCupraInvalidRequestException('The recurring variable must be set to True or False.')
         if not re.match('^[0-9]{2}:[0-9]{2}$', schedule.get('time', '')):
-            raise SeatInvalidRequestException('The time for the timer must be set in 24h format HH:MM.')
+            raise PyCupraInvalidRequestException('The time for the timer must be set in 24h format HH:MM.')
 
         # Validate optional inputs
         if schedule.get('recurring', False):
             if not re.match('^[yn]{7}$', schedule.get('days', '')):
-                raise SeatInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
+                raise PyCupraInvalidRequestException('For recurring schedules the days variable must be set to y/n mask (mon-sun with only wed enabled): nnynnnn.')
         elif not schedule.get('recurring'):
             if not re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', schedule.get('date', '')):
-                raise SeatInvalidRequestException('For single climatisation timer schedule the date variable must be set to YYYY-mm-dd.')
+                raise PyCupraInvalidRequestException('For single climatisation timer schedule the date variable must be set to YYYY-mm-dd.')
 
         if self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
             newSchedule = {}
@@ -1562,14 +1564,14 @@ class Vehicle:
             return await self._set_auxiliary_heating_timers(data, spin)
         else:
             self._LOGGER.info('Auxiliary heating timer are not supported.')
-            raise SeatInvalidRequestException('Auxiliary heating timer are not supported.')
+            raise PyCupraInvalidRequestException('Auxiliary heating timer are not supported.')
 
     async def _set_auxiliary_heating_timers(self, data=None, spin= False) -> bool:
         """ Set climatisation timers. """
         if not self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
-            raise SeatInvalidRequestException('Auxiliary heating timers are not supported.')
+            raise PyCupraInvalidRequestException('Auxiliary heating timers are not supported.')
         if self.checkForRunningRequests('climatisationtimer'):
-            raise SeatRequestInProgressException('Scheduling of auxiliary heating timer is already in progress')
+            raise PyCupraRequestInProgressException('Scheduling of auxiliary heating timer is already in progress')
 
         try:
             self._requests['latest'] = 'Climatisationtimer'
@@ -1577,7 +1579,7 @@ class Vehicle:
             if not response:
                 self._requests['climatisationtimer'] = {'status': 'Failed'}
                 self._LOGGER.error('Failed to execute auxiliary heating timer request')
-                raise SeatException('Failed to execute auxiliary heating timer request')
+                raise PyCupraException('Failed to execute auxiliary heating timer request')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['climatisationtimer'] = {
@@ -1619,24 +1621,24 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the auxiliary heating timers status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute auxiliary heating timer request - {error}')
             self._requests['climatisationtimer'] = {'status': 'Exception'}
-        raise SeatException('Failed to set auxiliary heating timer schedule')
+        raise PyCupraException('Failed to set auxiliary heating timer schedule')
 
     # Parking heater heating/ventilation (RS)
     async def set_pheater(self, mode, spin) -> bool:
         """Set the mode for the parking heater."""
         if not self.is_pheater_heating_supported:
             self._LOGGER.error('No parking heater support.')
-            raise SeatInvalidRequestException('No parking heater support.')
+            raise PyCupraInvalidRequestException('No parking heater support.')
         if self.checkForRunningRequests('preheater'):
-            raise SeatRequestInProgressException('A parking heater action is already in progress')
+            raise PyCupraRequestInProgressException('A parking heater action is already in progress')
         if not mode in ['heating', 'ventilation', 'off']:
             self._LOGGER.error(f'{mode} is an invalid action for parking heater')
-            raise SeatInvalidRequestException(f'{mode} is an invalid action for parking heater')
+            raise PyCupraInvalidRequestException(f'{mode} is an invalid action for parking heater')
         if mode == 'off':
             data = {'performAction': {'quickstop': {'active': False }}}
         else:
@@ -1648,7 +1650,7 @@ class Vehicle:
             if not response:
                 self._requests['preheater'] = {'status': 'Failed'}
                 self._LOGGER.error(f'Failed to set parking heater to {mode}')
-                raise SeatException(f'setPreHeater returned "{response}"')
+                raise PyCupraException(f'setPreHeater returned "{response}"')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['preheater'] = {
@@ -1657,12 +1659,12 @@ class Vehicle:
                     'id': response.get('id', 0),
                 }
                 return True
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to set parking heater mode to {mode} - {error}')
             self._requests['preheater'] = {'status': 'Exception'}
-        raise SeatException('Pre-heater action failed')
+        raise PyCupraException('Pre-heater action failed')
 
     # Lock 
     async def set_lock(self, action, spin) -> bool:
@@ -1670,19 +1672,19 @@ class Vehicle:
         #if not self._services.get('rlu_v1', False):
         if not self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False):
             self._LOGGER.info('Remote lock/unlock is not supported.')
-            raise SeatInvalidRequestException('Remote lock/unlock is not supported.')
+            raise PyCupraInvalidRequestException('Remote lock/unlock is not supported.')
         if self.checkForRunningRequests('lock'):
-            raise SeatRequestInProgressException('A lock action is already in progress')
+            raise PyCupraRequestInProgressException('A lock action is already in progress')
         if action not in ['lock', 'unlock']:
             self._LOGGER.error(f'Invalid lock action: {action}')
-            raise SeatInvalidRequestException(f'Invalid lock action: {action}')
+            raise PyCupraInvalidRequestException(f'Invalid lock action: {action}')
         try:
             self._requests['latest'] = 'Lock'
             response = await self._connection.setLock(self.vin, self._apibase, action, spin)
             if not response:
                 self._requests['lock'] = {'status': 'Failed'}
                 self._LOGGER.error(f'Failed to {action} vehicle')
-                raise SeatException(f'Failed to {action} vehicle')
+                raise PyCupraException(f'Failed to {action} vehicle')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['lock'] = {
@@ -1713,27 +1715,27 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the lock status did not change as expected.')
                 return False
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to {action} vehicle - {error}')
             self._requests['lock'] = {'status': 'Exception'}
-        raise SeatException('Lock action failed')
+        raise PyCupraException('Lock action failed')
 
     # Honk and flash (RHF)
     async def set_honkandflash(self, action, lat=None, lng=None) -> bool:
         """Turn on/off honk and flash."""
         if not self._relevantCapabilties.get('honkAndFlash', {}).get('active', False):
             self._LOGGER.info('Remote honk and flash is not supported.')
-            raise SeatInvalidRequestException('Remote honk and flash is not supported.')
+            raise PyCupraInvalidRequestException('Remote honk and flash is not supported.')
         if self.checkForRunningRequests('honkandflash'):
-            raise SeatRequestInProgressException('A honk and flash is already in progress')
+            raise PyCupraRequestInProgressException('A honk and flash is already in progress')
         if action == 'flash':
             operationCode = 'flash'
         elif action == 'honkandflash':
             operationCode = 'honkandflash'
         else:
-            raise SeatInvalidRequestException(f'Invalid action "{action}", must be one of "flash" or "honkandflash"')
+            raise PyCupraInvalidRequestException(f'Invalid action "{action}", must be one of "flash" or "honkandflash"')
         try:
             # Get car position
             if lat is None:
@@ -1741,7 +1743,7 @@ class Vehicle:
             if lng is None:
                 lng = self.attrs.get('findCarResponse', {}).get('lon', None)
             if lat is None or lng is None:
-                raise SeatConfigException('No location available, location information is needed for this action')
+                raise PyCupraConfigException('No location available, location information is needed for this action')
             lat = int(lat*10000.0)/10000.0
             lng = int(lng*10000.0)/10000.0
             data = {
@@ -1756,7 +1758,7 @@ class Vehicle:
             if not response:
                 self._requests['honkandflash'] = {'status': 'Failed'}
                 self._LOGGER.error(f'Failed to execute honk and flash action')
-                raise SeatException(f'Failed to execute honk and flash action')
+                raise PyCupraException(f'Failed to execute honk and flash action')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['honkandflash'] = {
@@ -1765,28 +1767,28 @@ class Vehicle:
                     'id': response.get('id', 0),
                 }
                 return True
-        except (SeatInvalidRequestException, SeatException):
+        except (PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to {action} vehicle - {error}')
             self._requests['honkandflash'] = {'status': 'Exception'}
-        raise SeatException('Honk and flash action failed')
+        raise PyCupraException('Honk and flash action failed')
 
     # Refresh vehicle data (VSR)
     async def set_refresh(self) -> bool:
         """Wake up vehicle and update status data."""
         if not self._relevantCapabilties.get('state', {}).get('active', False):
            self._LOGGER.info('Data refresh is not supported.')
-           raise SeatInvalidRequestException('Data refresh is not supported.')
+           raise PyCupraInvalidRequestException('Data refresh is not supported.')
         if self.checkForRunningRequests('refresh'):
-            raise SeatRequestInProgressException('Last data refresh request is less than 1 minute ago')
+            raise PyCupraRequestInProgressException('Last data refresh request is less than 1 minute ago')
         try:
             self._requests['latest'] = 'Refresh'
             response = await self._connection.setRefresh(self.vin, self._apibase)
             if not response:
                 self._LOGGER.error('Failed to request vehicle update')
                 self._requests['refresh'] = {'status': 'Failed'}
-                raise SeatException('Failed to execute data refresh')
+                raise PyCupraException('Failed to execute data refresh')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['refresh'] = {
@@ -1816,12 +1818,12 @@ class Vehicle:
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the timestamp, when the vehicle was last connected,  did not change as expected.')
                 return False
-        except(SeatInvalidRequestException, SeatException):
+        except(PyCupraInvalidRequestException, PyCupraException):
             raise
         except Exception as error:
             self._LOGGER.warning(f'Failed to execute data refresh - {error}')
             self._requests['refresh'] = {'status': 'Exception'}
-        raise SeatException('Data refresh failed')
+        raise PyCupraException('Data refresh failed')
 
  #### Vehicle class helpers ####
     # Vehicle info
@@ -2652,7 +2654,7 @@ class Vehicle:
         return False
 
     @property
-    def adblue_range(self) -> int:
+    def adblue_range(self) -> float:
         """Return adblue range."""
         if self.attrs.get('ranges', False):
             filteredItems = [rangeItem for rangeItem in self.attrs.get('ranges', False) if rangeItem['rangeName'] == 'adBlueKm']
@@ -3491,7 +3493,7 @@ class Vehicle:
             return {}
         except Exception as error:
             self._LOGGER.warning(f'Failed to find trip_last_entry - {error}')
-        #raise SeatException('Failed to find trip_last_entry')
+        #raise PyCupraException('Failed to find trip_last_entry')
         return {}
 
     @property
@@ -3646,7 +3648,7 @@ class Vehicle:
             return {}
         except Exception as error:
             self._LOGGER.warning(f'Failed to find trip_last_cycle_entry - {error}')
-        #raise SeatException('Failed to find trip_last_cycle_entry')
+        #raise PyCupraException('Failed to find trip_last_cycle_entry')
         return {}
 
     @property
@@ -3890,9 +3892,9 @@ class Vehicle:
     def is_refresh_data_supported(self) -> bool:
         """Data refresh is supported."""
         if self._connectivities.get('mode', '') == 'online':
-            return True
-        else:
-            return False
+            if self._relevantCapabilties.get('vehicleWakeUp',{}).get('active', False):
+                return True
+        return False
 
     @property
     def update_data(self) -> bool:
@@ -4004,7 +4006,7 @@ class Vehicle:
 
     def checkForRunningRequests(self, requestType=None) -> bool:
         if self._requests.get(requestType, None)==None:
-            raise SeatInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
+            raise PyCupraInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
         if requestType in {'batterycharge', 'departuretimer','departureprofile', 'climatisationtimer', 'climatisation', 'preheater', 'lock', 'honkandflash'}:
             waitTimeInMinutes=1
             cleanLevel1=requestType
@@ -4012,7 +4014,7 @@ class Vehicle:
             waitTimeInMinutes=2
             cleanLevel1=requestType
         else:
-            raise SeatInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
+            raise PyCupraInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
 
         if self._requests[requestType].get('id', False):
             timestamp = self._requests.get(requestType, {}).get('timestamp', datetime.now())
