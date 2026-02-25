@@ -140,6 +140,7 @@ RESOURCES = [
 		"trunk_closed",
 		"trunk_locked",
 		"vehicle_moving",
+        "vehicle_online",
         "warnings",
 		"window_closed_left_back",
 		"window_closed_left_front",

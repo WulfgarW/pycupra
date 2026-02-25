@@ -168,6 +168,28 @@ class Vehicle:
 
     async def update(self, updateType=0) -> bool:
         """Try to fetch data for all known API endpoints."""
+        # Check time stamp of last capability query and reread capabilities and connection if older than 29 minutes or if vehicle deactivated
+        if self._properties == None:
+            self._properties = {}
+        if self._properties.get('capabilitiesQueriedOn','')=='':
+            self._properties['capabilitiesQueriedOn'] = '2000-01-01T00:00:00Z'
+        lastQueriedOn = datetime.strptime(self._properties.get('capabilitiesQueriedOn')[:19]+'Z', '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc).astimezone(tz=None)
+        if lastQueriedOn < (datetime.now(tz=None) - timedelta(minutes= 29)).astimezone(tz=None) or self.deactivated:
+            data = await self._connection.getCapabilities(self.vin, self._apibase)
+            if data:
+                self._capabilities = data.get('capabilities',{})
+                self._properties['platform'] = data.get('platform','MOD3')
+                self._properties['capabilitiesQueriedOn'] = data.get('capabilitiesQueriedOn','')
+                self._LOGGER.debug('Successfully updated capabilities information.')
+            else:
+                self._LOGGER.debug('Could not fetch capabilities data')
+            data = await self._connection.getConnectivities(self.vin, self._apibase)
+            if data:
+                self._connectivities = data.get('connection')
+                self._LOGGER.debug('Successfully updated connectivities information.')
+            else:
+                self._LOGGER.debug('Could not fetch connectivities data')
+
         # Update vehicle information if not discovered or stale information
         if not self._discovered:
             await self.discover()
@@ -624,6 +646,8 @@ class Vehicle:
                 if actionSuccessful:
                     self._LOGGER.debug('POST request for charger successful. New status as expected.')
                     self._requests.get('batterycharge', {}).pop('id')
+                    if self._requests.get('batterycharge', {}).get('status','') == 'Request accepted':
+                        self._requests['batterycharge']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('batterycharge') # clean the charging elements of self._wantedStateOfProperty
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the charging status did not change as expected.')
@@ -1301,6 +1325,8 @@ class Vehicle:
                 if actionSuccessful:
                     self._LOGGER.debug('POST request for climater successful. New status as expected.')
                     self._requests.get('climatisation', {}).pop('id')
+                    if self._requests.get('climatisation', {}).get('status','') == 'Request accepted':
+                        self._requests['climatisation']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the climater status did not change as expected.')
@@ -1712,6 +1738,8 @@ class Vehicle:
                 if actionSuccessful:
                     self._LOGGER.debug('POST request for lock/unlock successful. New status as expected.')
                     self._requests.get('lock', {}).pop('id')
+                    if self._requests.get('lock', {}).get('status','') == 'Request accepted':
+                        self._requests['lock']['status'] = 'Request executed'
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the lock status did not change as expected.')
                 return False
@@ -1815,6 +1843,8 @@ class Vehicle:
                 if actionSuccessful == True: 
                     self._LOGGER.debug('POST request for refresh successful. New status as expected.')
                     self._requests.get('refresh', {}).pop('id')
+                    if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
+                        self._requests['refresh']['status'] = 'Request executed'
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the timestamp, when the vehicle was last connected,  did not change as expected.')
                 return False
@@ -1883,6 +1913,14 @@ class Vehicle:
         if 'mode' in self._connectivities:
             return True
         return False
+
+    @property
+    def vehicle_online(self) -> bool:
+        return not self.deactivated
+
+    @property
+    def is_vehicle_online_supported(self) -> bool:
+        return self.is_deactivated_supported
 
     @property
     def brand(self):
@@ -3807,6 +3845,11 @@ class Vehicle:
         return self._requests.get('refresh', {}).get('status', 'None')
 
     @property
+    def refresh_action_id(self):
+        """Return latest refresh request id."""
+        return self._requests.get('refresh', {}).get('id', 'None')
+
+    @property
     def refresh_action_timestamp(self) -> str:
         """Return timestamp of latest data refresh request."""
         timestamp = self._requests.get('refresh', {}).get('timestamp', DATEZERO)
@@ -3818,15 +3861,25 @@ class Vehicle:
         return self._requests.get('batterycharge', {}).get('status', 'None')
 
     @property
+    def charger_action_id(self):
+        """Return latest charger request id."""
+        return self._requests.get('batterycharge', {}).get('id', 'None')
+
+    @property
     def charger_action_timestamp(self) -> str:
         """Return timestamp of latest charger request."""
-        timestamp = self._requests.get('charger', {}).get('timestamp', DATEZERO)
+        timestamp = self._requests.get('batterycharge', {}).get('timestamp', DATEZERO)
         return timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
     @property
     def climater_action_status(self):
         """Return latest status of climater request."""
         return self._requests.get('climatisation', {}).get('status', 'None')
+
+    @property
+    def climater_action_id(self):
+        """Return latest climater request id."""
+        return self._requests.get('climatisation', {}).get('id', 'None')
 
     @property
     def climater_action_timestamp(self) -> str:
@@ -3862,6 +3915,11 @@ class Vehicle:
         return self._requests.get('lock', {}).get('status', 'None')
 
     @property
+    def lock_action_id(self):
+        """Return latest lock request id."""
+        return self._requests.get('lock', {}).get('id', 'None')
+
+    @property
     def lock_action_timestamp(self) -> str:
         """Return timestamp of latest lock action request."""
         timestamp = self._requests.get('lock', {}).get('timestamp', DATEZERO)
@@ -3891,7 +3949,7 @@ class Vehicle:
     @property
     def is_refresh_data_supported(self) -> bool:
         """Data refresh is supported."""
-        if self._connectivities.get('mode', '') == 'online':
+        if self.vehicle_online:
             if self._relevantCapabilties.get('vehicleWakeUp',{}).get('active', False):
                 return True
         return False
@@ -4021,6 +4079,8 @@ class Vehicle:
             expired = datetime.now() - timedelta(minutes=waitTimeInMinutes)
             if expired > timestamp:
                 self._requests.get(requestType, {}).pop('id')
+                if self._requests.get(requestType, {}).get('status','') == 'Request accepted':
+                    self._requests[requestType]['status'] = 'Request status unknown'
                 self.cleanWantedStateOfProperty(cleanLevel1) # clean the respective elements of self._wantedStateOfProperty
                 self._LOGGER.info(f"State of a {requestType} request unknown more than {waitTimeInMinutes} minutes after its initiation. Assuming it's done.")
                 return False
@@ -4182,6 +4242,11 @@ class Vehicle:
                 if openRequest == requestId:
                     self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('lock', {}).pop('id')
+                    if self._requests.get('lock', {}).get('status','') == 'Request accepted':
+                        if ('failed' in type) or ('error' in type):
+                            self._requests['lock']['status'] = 'Request failed'
+                        else:
+                            self._requests['lock']['status'] = 'Request executed'
             if (self._last_get_statusreport < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the status report only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 #await self.get_statusreport() # Call not needed because it's part of updateCallback(2)
@@ -4252,6 +4317,11 @@ class Vehicle:
                 if openRequest == requestId:
                     self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('batterycharge', {}).pop('id')
+                    if self._requests.get('batterycharge', {}).get('status','') == 'Request accepted':
+                        if ('failed' in type) or ('error' in type):
+                            self._requests['batterycharge']['status'] = 'Request failed'
+                        else:
+                            self._requests['batterycharge']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('charging') # clean the charging elements of self._wantedStateOfProperty
             if (self._last_get_charger < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the charging data only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
@@ -4270,6 +4340,11 @@ class Vehicle:
                 if openRequest == requestId:
                     self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('climatisation', {}).pop('id')
+                    if self._requests.get('climatisation', {}).get('status','') == 'Request accepted':
+                        if ('failed' in type) or ('error' in type):
+                            self._requests['climatisation']['status'] = 'Request failed'
+                        else:
+                            self._requests['climatisation']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
             if (self._last_get_climater < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the climatisation data only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
@@ -4303,6 +4378,11 @@ class Vehicle:
                 if openRequest == requestId:
                     self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
                     self._requests.get('refresh', {}).pop('id')
+                    if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
+                        if ('failed' in type) or ('error' in type):
+                            self._requests['refresh']['status'] = 'Request failed'
+                        else:
+                            self._requests['refresh']['status'] = 'Request executed'
             if (self._last_full_update < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
                 # Do full update only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 if self.updateCallback:

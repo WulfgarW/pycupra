@@ -306,6 +306,15 @@ class TargetStateOfChargeNumber(Number):
         self._LOGGER.debug(f'Target state of charge shall be set to {newValue}.')
         await self.vehicle.set_charger_target_soc(newValue)
 
+    # The Number entity does not show attributes
+    #@property
+    #def attributes(self):
+    #    attrs = {
+    #        'Last charge request status': self.vehicle.charger_action_status,
+    #        'Last charge request timestamp': self.vehicle.charger_action_timestamp,
+    #        'Current charge request id': self.vehicle.charger_action_id,
+    #    }
+    #    return attrs
 
 class ElectricClimatisationClimate(Climate):
     def __init__(self):
@@ -519,7 +528,12 @@ class DoorLock(Instrument):
 
     @property
     def attributes(self):
-        return dict(last_result = self.vehicle.lock_action_status)
+        attrs = {
+            'Last lock request status': self.vehicle.lock_action_status,
+            'Last lock request timestamp': self.vehicle.lock_action_timestamp,
+            'Current lock request id': self.vehicle.lock_action_id,
+        }
+        return attrs
 
 
 """class TrunkLock(Instrument):
@@ -634,7 +648,12 @@ class RequestRefresh(Switch):
 
     @property
     def attributes(self) -> dict:
-        return dict(last_result = self.vehicle.refresh_action_status)
+        attrs = {
+            'Last refresh request status': self.vehicle.refresh_action_status,
+            'Last refresh request timestamp': self.vehicle.refresh_action_timestamp,
+            'Current refresh request id': self.vehicle.refresh_action_id,
+        }
+        return attrs
 
 class RequestUpdate(Switch):
     def __init__(self):
@@ -704,6 +723,15 @@ class RequestRefreshButton(Button): #RequestRefresh as a button (because some us
         else:
             return False
 
+    @property
+    def attributes(self) -> dict:
+        attrs = {
+            'Last refresh request status': self.vehicle.refresh_action_status,
+            'Last refresh request timestamp': self.vehicle.refresh_action_timestamp,
+            'Current refresh request id': self.vehicle.refresh_action_id,
+        }
+        return attrs
+
 
 class ElectricClimatisation(Switch):
     def __init__(self):
@@ -734,9 +762,9 @@ class ElectricClimatisation(Switch):
         attrs = {}
         if self.vehicle.is_electric_climatisation_attributes_supported:
             attrs = self.vehicle.electric_climatisation_attributes
-            attrs['last_result'] = self.vehicle.climater_action_status
-        else:
-            attrs['last_result'] = self.vehicle.climater_action_status
+        attrs['Last climater request status'] = self.vehicle.climater_action_status
+        attrs['Last climater request timestamp'] = self.vehicle.climater_action_timestamp
+        attrs['Current climater request id'] = self.vehicle.climater_action_id
         return attrs
 
 
@@ -770,7 +798,12 @@ class AuxiliaryClimatisation(Switch):
 
     @property
     def attributes(self) -> dict:
-        return dict(last_result = self.vehicle.climater_action_status)
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 
 class Charging(Switch):
@@ -799,7 +832,12 @@ class Charging(Switch):
 
     @property
     def attributes(self):
-        return dict(last_result = self.vehicle.charger_action_status)
+        attrs = {
+            'Last charge request status': self.vehicle.charger_action_status,
+            'Last charge request timestamp': self.vehicle.charger_action_timestamp,
+            'Current charge request id': self.vehicle.charger_action_id,
+        }
+        return attrs
 
 
 class WindowHeater(Switch):
@@ -828,8 +866,13 @@ class WindowHeater(Switch):
 
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 
 class SeatHeating(Switch):
@@ -860,7 +903,12 @@ class SeatHeating(Switch):
 
     #@property
     #def attributes(self):
-    #    return dict(last_result = self.vehicle.climater_action_status)
+    #    attrs = {
+    #        'Last climater request status': self.vehicle.climater_action_status,
+    #        'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+    #        'Current climater request id': self.vehicle.climater_action_id,
+    #    }
+    #    return attrs
 
 
 class BatteryClimatisation(Switch):
@@ -888,8 +936,13 @@ class BatteryClimatisation(Switch):
         return False
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 class ClimatisationSettingZoneFrontLeft(Switch):
     def __init__(self):
@@ -916,8 +969,13 @@ class ClimatisationSettingZoneFrontLeft(Switch):
         return False
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 class ClimatisationSettingZoneFrontRight(Switch):
     def __init__(self):
@@ -944,8 +1002,13 @@ class ClimatisationSettingZoneFrontRight(Switch):
         return False
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 
 class ClimatisationSettingAtUnlock(Switch):
@@ -973,8 +1036,13 @@ class ClimatisationSettingAtUnlock(Switch):
         return False
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 
 class ClimatisationSettingWindowHeatingEnabled(Switch):
@@ -1002,8 +1070,13 @@ class ClimatisationSettingWindowHeatingEnabled(Switch):
         return False
 
     @property
-    def attributes(self):
-        return dict(last_result = self.vehicle.climater_action_status)
+    def attributes(self) -> dict:
+        attrs = {
+            'Last climater request status': self.vehicle.climater_action_status,
+            'Last climater request timestamp': self.vehicle.climater_action_timestamp,
+            'Current climater request id': self.vehicle.climater_action_id,
+        }
+        return attrs
 
 
 class PHeaterHeating(Switch):
@@ -1093,7 +1166,12 @@ class SlowCharge(Switch):
 
     @property
     def attributes(self):
-        return dict(last_result = self.vehicle.charger_action_status)
+        attrs = {
+            'Last charge request status': self.vehicle.charger_action_status,
+            'Last charge request timestamp': self.vehicle.charger_action_timestamp,
+            'Current charge request id': self.vehicle.charger_action_id,
+        }
+        return attrs
 
 
 class Warnings(Sensor):
@@ -1172,9 +1250,14 @@ class ChargingBatteryCare(Switch):
         return False
 
 
-    #@property
-    #def attributes(self):
-    #    return dict(last_result = self.vehicle.chargingBatteryCare_action_status)
+    @property
+    def attributes(self):
+        attrs = {
+            'Last charge request status': self.vehicle.charger_action_status,
+            'Last charge request timestamp': self.vehicle.charger_action_timestamp,
+            'Current charge request id': self.vehicle.charger_action_id,
+        }
+        return attrs
 
 class ClimatisationTimer1(Switch):
     def __init__(self):
@@ -2063,6 +2146,11 @@ def create_instruments():
         BinarySensor(
             attr="request_in_progress",
             name="Request in progress",
+            device_class="connectivity"
+        ),
+        BinarySensor(
+            attr="vehicle_online",
+            name="Vehicle online",
             device_class="connectivity"
         ),
     ]

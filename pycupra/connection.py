@@ -421,7 +421,7 @@ class Connection:
                     maxDepth -= 1
                     if maxDepth == 0:
                         raise PyCupraException('Too many redirects')
-            except (PyCupraException, PyCupraEULAException, PyCupraAuthenticationException, PyCupraAccountLockedException, PyCupraLoginFailedException):
+            except (PyCupraException, PyCupraEULAException, PyCupraAuthenticationException, PyCupraAccountLockedException, PyCupraLoginFailedException, PyCupraMarketingConsentException):
                 self._LOGGER.warning(f'Running into login problems with location={location}')
                 raise
             except Exception as e:
@@ -897,6 +897,7 @@ class Connection:
                     if response.get('capabilities', False):
                         vehicle["capabilities"]=response.get('capabilities')
                         vehicle["platform"] = response.get('platform', 'MOD3')
+                        vehicle["capabilitiesQueriedOn"] = response.get('queriedOn', '')
                     else:
                         self._LOGGER.warning(f"Failed to aquire capabilities information about vehicle with VIN {vehicle}.")
                         if vehicle.get('capabilities',None)!=None:
@@ -996,6 +997,44 @@ class Connection:
         except Exception as error:
             self._LOGGER.debug(f'Could not get consent information, error {error}')
         return False"""
+
+    async def getCapabilities(self, vin, baseurl) -> dict | bool:
+        """Get capabilities information."""
+        await self.set_token(self._session_auth_brand)
+        data={}
+        try:
+            response = await self.get(API_CAPABILITIES.format(APP_URI=baseurl, userId=self._user_id, vin=vin))
+            if response.get('capabilities', False):
+                data["capabilities"]=response.get('capabilities')
+                data["platform"] = response.get('platform', 'MOD3')
+                data["capabilitiesQueriedOn"] = response.get('queriedOn', '')
+            elif response.get('status_code', {}):
+                self._LOGGER.warning(f'Could not fetch capabilities information, HTTP status code: {response.get("status_code")}')
+            else:
+                self._LOGGER.info('Unhandled error while trying to fetch capabilities information')
+        except Exception as error:
+            self._LOGGER.warning(f'Could not fetch capabilities information, error: {error}')
+        if data=={}:
+            return False
+        return data
+
+    async def getConnectivities(self, vin, baseurl) -> dict | bool:
+        """Get capabilities information."""
+        await self.set_token(self._session_auth_brand)
+        data={}
+        try:
+            response = await self.get(API_CONNECTION.format(APP_URI=baseurl, vin=vin))
+            if response.get('connection', False):
+                data=response
+            elif response.get('status_code', {}):
+                self._LOGGER.warning(f'Could not fetch connection information, HTTP status code: {response.get("status_code")}')
+            else:
+                self._LOGGER.info('Unhandled error while trying to fetch connection information')
+        except Exception as error:
+            self._LOGGER.warning(f'Could not fetch connection information, error: {error}')
+        if data=={}:
+            return False
+        return data
 
     async def getBasicCarData(self, vin, baseurl) -> dict | bool:
         """Get car information from customer profile, VIN, nickname, etc."""
