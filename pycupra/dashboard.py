@@ -1819,6 +1819,16 @@ def create_instruments():
             #device_class="current"
         ),
         Sensor(
+            attr="charging_mode",
+            name="Charging mode",
+            icon="mdi:battery",
+        ),
+        Sensor(
+            attr="charging_preferred_mode",
+            name="Charging preferred mode",
+            icon="mdi:battery",
+        ),
+        Sensor(
             attr="climatisation_target_temperature",
             name="Climatisation target temperature",
             icon="mdi:thermometer",
@@ -2026,6 +2036,12 @@ def create_instruments():
         #    name="Charging state",
         #    device_class="power"
         #),
+        BinarySensor(
+            attr="charging_profile_defined",
+            name="Charging profile defined",
+            device_class="None",
+            icon="mdi:battery"
+        ),
         BinarySensor(
             attr="engine",
             name="Engine Status",

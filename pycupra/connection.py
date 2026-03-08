@@ -2076,9 +2076,10 @@ class Connection:
                 self.dailyTripData[vin] = {}
             if self.dailyTripData[vin].get(entryDate,{})!={}:
                 #entryDate is already present in self.dailyTripData
-                if currentDaySumElement.get('drivingTime',0.0) > self.dailyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
-                    currentDaySumElement.get('distanceDriven',0.0) > self.dailyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
+                if currentDaySumElement.get('drivingTime',0.0) != self.dailyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
+                    currentDaySumElement.get('distanceDriven',0.0) != self.dailyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
                     #Entry in self.dailyTripData does not represent the final values of the daily sum for the respective date
+                    #If vehicle is driving while date changes (over 0:00), then this trip seems to be shown in the data of the old date first, until the trip end and it is seen as part of the new date
                     self._LOGGER.debug(f'API returned more current daily sum trip data for {entryDate}. Updating history.')
                     self.dailyTripData[vin][entryDate]['drivingTime'] = currentDaySumElement.get('drivingTime',0.0)
                     self.dailyTripData[vin][entryDate]['distanceDriven'] = currentDaySumElement.get('distanceDriven',0.0)
@@ -2087,7 +2088,7 @@ class Connection:
                     self.dailyTripData[vin][entryDate]['speed'] = currentDaySumElement.get('speed',0.0)
                     self.dailyTripData[vin][entryDate]['endMileage'] = backwardCalculatedMileage
                     if backwardCalculatedMileage!=latestMileage:
-                        self.dailyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because driving time changed.'
+                        self.dailyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because driving time or distance changed.'
                     updated = True
                 else:
                     if index == len(listOfDailySums) -1 and latestMileage > self.dailyTripData[vin][entryDate]['endMileage']:
@@ -2135,9 +2136,10 @@ class Connection:
                 self.monthlyTripData[vin] = {}
             if self.monthlyTripData[vin].get(entryDate,{})!={}:
                 #entryDate is already present in self.monthlyTripData
-                if currentMonthSumElement.get('drivingTime',0.0) > self.monthlyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
-                    currentMonthSumElement.get('distanceDriven',0.0) > self.monthlyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
+                if currentMonthSumElement.get('drivingTime',0.0) != self.monthlyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
+                    currentMonthSumElement.get('distanceDriven',0.0) != self.monthlyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
                     #Entry in self.monthlyTripData does not represent the final values of the monthly sum for the respective date
+                    #If vehicle is driving while date changes (over 0:00), then this trip seems to be shown in the data of the old date first, until the trip end and it is seen as part of the new date
                     self._LOGGER.debug(f'API returned more current monthly sum trip data for {entryDate}. Updating history.')
                     self.monthlyTripData[vin][entryDate]['drivingTime'] = currentMonthSumElement.get('drivingTime',0.0)
                     self.monthlyTripData[vin][entryDate]['distanceDriven'] = currentMonthSumElement.get('distanceDriven',0.0)
@@ -2146,7 +2148,7 @@ class Connection:
                     self.monthlyTripData[vin][entryDate]['speed'] = currentMonthSumElement.get('speed',0.0)
                     self.monthlyTripData[vin][entryDate]['endMileage'] = backwardCalculatedMileage
                     if backwardCalculatedMileage!=latestMileage:
-                        self.monthlyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older month, because driving time changed.'
+                        self.monthlyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older month, because driving time or distance changed.'
                     updated = True
                 else:
                     if index == len(listOfMonthlySums) -1 and latestMileage > self.monthlyTripData[vin][entryDate]['endMileage']:

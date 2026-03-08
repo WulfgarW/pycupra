@@ -2437,6 +2437,71 @@ class Vehicle:
         return False
 
     @property
+    def charging_mode(self):
+        """Return vehicle's charge mode."""
+        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
+        if check not in ('manual','profile','timer'):
+            self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging mode. Please open an issue.")
+        if check == 'manual':
+            return 'Manual'
+        if check == 'profile':
+            return 'Profile'
+        if check == 'timer':
+            return 'Timer'
+        return check
+
+    @property
+    def is_charging_mode_supported(self) -> bool:
+        """Charging mode supported."""
+        if self.attrs.get('mycar', False):
+            if 'services' in self.attrs.get('mycar', {}):
+                if 'charging' in self.attrs.get('mycar')['services']:
+                    if 'chargeMode' in self.attrs.get('mycar')['services']['charging']:
+                        return True
+        return False
+
+    @property
+    def charging_preferred_mode(self):
+        """Return vehicle's preferred charge mode."""
+        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('preferredChargeMode','')
+        if check not in ('manual','preferredChargingTimes'):
+            self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging preferred mode. Please open an issue.")
+        if check == 'manual':
+            return 'Now'
+        if check == 'preferredChargingTimes':
+            return 'Scheduled'
+        return check
+
+    @property
+    def is_charging_preferred_mode_supported(self) -> bool:
+        """Charging preferred mode supported."""
+        if self.attrs.get('mycar', False):
+            if 'services' in self.attrs.get('mycar', {}):
+                if 'charging' in self.attrs.get('mycar')['services']:
+                    if 'preferredChargeMode' in self.attrs.get('mycar')['services']['charging']:
+                        return True
+        return False
+
+    @property
+    def charging_profile_defined(self):
+        """Return true if chargeSettings is 'profile'."""
+        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeSettings','')
+        if check== 'profile':
+            return True
+        else:
+            return False
+
+    @property
+    def is_charging_profile_defined_supported(self) -> bool:
+        """Charging profile defined supported."""
+        if self.attrs.get('mycar', False):
+            if 'services' in self.attrs.get('mycar', {}):
+                if 'charging' in self.attrs.get('mycar')['services']:
+                    if 'chargeSettings' in self.attrs.get('mycar')['services']['charging']:
+                        return True
+        return False
+
+    @property
     def energy_flow(self):
         """Return true if energy is flowing to (i.e. charging) or from (i.e. climating with battery power) the battery."""
         if self.charging_state:
