@@ -284,6 +284,8 @@ class TargetStateOfChargeNumber(Number):
 
     @property
     def min_value(self):
+        if self.vehicle._specification.get('factoryModel', {}).get('vehicleModel', 'Unknown').lower() in ('born', 'tavascan', 'raval'):
+            return 50
         return 10
 
     @property
@@ -295,6 +297,10 @@ class TargetStateOfChargeNumber(Number):
         return 10
 
     @property
+    def unit(self):
+        return '%'
+
+    @property
     def value(self):
         if self.vehicle._requests.get('batterycharge', {}).get('id', False):
             self._LOGGER.debug('A charging request is active. Setting the target soc number entity to new wanted state (if present).')
@@ -303,8 +309,11 @@ class TargetStateOfChargeNumber(Number):
         return self.vehicle.target_soc
 
     async def set_value(self, newValue):
-        self._LOGGER.debug(f'Target state of charge shall be set to {newValue}.')
-        await self.vehicle.set_charger_target_soc(newValue)
+        try:
+            self._LOGGER.debug(f'Target state of charge shall be set to {newValue}.')
+            await self.vehicle.set_charger_target_soc(newValue)
+        except:
+            raise
 
     # The Number entity does not show attributes
     #@property
@@ -337,13 +346,19 @@ class ElectricClimatisationClimate(Climate):
         return self.vehicle.climatisation_target_temperature
 
     async def set_temperature(self, temperature):
-        await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+        try:
+            await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+        except:
+            raise
 
     async def set_hvac_mode(self, hvac_mode):
-        if hvac_mode:
-            await self.vehicle.set_climatisation('electric')
-        else:
-            await self.vehicle.set_climatisation('off')
+        try:
+            if hvac_mode:
+                await self.vehicle.set_climatisation('electric')
+            else:
+                await self.vehicle.set_climatisation('off')
+        except:
+            raise
 
 class AuxiliaryClimatisationClimate(Climate):
     def __init__(self):
@@ -366,13 +381,19 @@ class AuxiliaryClimatisationClimate(Climate):
         return self.vehicle.climatisation_target_temperature
 
     async def set_temperature(self, temperature):
-        await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+        try:
+            await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+        except:
+            raise
 
     async def set_hvac_mode(self, hvac_mode):
-        if hvac_mode:
-            await self.vehicle.set_climatisation('auxiliary_start')
-        else:
-            await self.vehicle.set_climatisation('auxiliary_stop')
+        try:
+            if hvac_mode:
+                await self.vehicle.set_climatisation('auxiliary_start')
+            else:
+                await self.vehicle.set_climatisation('auxiliary_stop')
+        except:
+            raise
 
 
 class CombustionClimatisationClimate(Climate):
@@ -392,13 +413,19 @@ class CombustionClimatisationClimate(Climate):
         return self.vehicle.climatisation_target_temperature
 
     async def set_temperature(self, temperature):
-        await self.vehicle.setClimatisationTargetTemperature(temperature)
+        try:
+            await self.vehicle.setClimatisationTargetTemperature(temperature)
+        except:
+            raise
 
     async def set_hvac_mode(self, hvac_mode):
-        if hvac_mode:
-            await self.vehicle.pheater_climatisation(spin=self.spin, duration=self.duration, mode='heating')
-        else:
-            await self.vehicle.pheater_climatisation(spin=self.spin, mode='off')
+        try:
+            if hvac_mode:
+                await self.vehicle.pheater_climatisation(spin=self.spin, duration=self.duration, mode='heating')
+            else:
+                await self.vehicle.pheater_climatisation(spin=self.spin, mode='off')
+        except:
+            raise
 
 
 class Position(Instrument):
@@ -633,11 +660,14 @@ class RequestRefresh(Switch):
         return False #self.vehicle.refresh_data
 
     async def turn_on(self) -> None:
-        self._LOGGER.debug('User has called RequestRefresh().')
-        await self.vehicle.set_refresh()
-        #await self.vehicle.update(updateType=1) #full update after set_refresh
-        #if self.callback is not None:
-        #    self.callback()
+        try:
+            self._LOGGER.debug('User has called RequestRefresh().')
+            await self.vehicle.set_refresh()
+            #await self.vehicle.update(updateType=1) #full update after set_refresh
+            #if self.callback is not None:
+            #    self.callback()
+        except:
+            raise
 
     async def turn_off(self) -> None:
         pass
@@ -669,10 +699,13 @@ class RequestUpdate(Switch):
         return False #self.vehicle.update
 
     async def turn_on(self) -> None:
-        self._LOGGER.debug('User has called RequestUpdate().')
-        await self.vehicle.update(updateType=1) #full update after set_refresh
-        if self.callback is not None:
-            self.callback()
+        try:
+            self._LOGGER.debug('User has called RequestUpdate().')
+            await self.vehicle.update(updateType=1) #full update after set_refresh
+            if self.callback is not None:
+                self.callback()
+        except:
+            raise
 
     async def turn_off(self) -> None:
         pass
@@ -746,12 +779,18 @@ class ElectricClimatisation(Switch):
         return self.vehicle.electric_climatisation
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation(mode = 'electric')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation(mode = 'electric')
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation(mode = 'off')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation(mode = 'off')
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self) -> bool:
@@ -785,12 +824,18 @@ class AuxiliaryClimatisation(Switch):
         return self.vehicle.auxiliary_climatisation
 
     async def turn_on(self) -> None:
-        await self.vehicle.set_climatisation(mode = 'auxiliary_start', spin = self.spin)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation(mode = 'auxiliary_start', spin = self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self) -> None:
-        await self.vehicle.set_climatisation(mode = 'auxiliary_stop')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation(mode = 'auxiliary_stop')
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self) -> bool:
@@ -819,12 +864,18 @@ class Charging(Switch):
         return self.vehicle.charging
 
     async def turn_on(self):
-        await self.vehicle.set_charger('start')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_charger('start')
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_charger('stop')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_charger('stop')
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -853,12 +904,18 @@ class WindowHeater(Switch):
         return self.vehicle.window_heater
 
     async def turn_on(self):
-        await self.vehicle.set_window_heating('start')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_window_heating('start')
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_window_heating('stop')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_window_heating('stop')
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -924,12 +981,18 @@ class BatteryClimatisation(Switch):
         return self.vehicle.climatisation_without_external_power
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation_one_setting('climatisationWithoutExternalPower',True)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('climatisationWithoutExternalPower',True)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation_one_setting('climatisationWithoutExternalPower',False)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('climatisationWithoutExternalPower',False)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -957,12 +1020,18 @@ class ClimatisationSettingZoneFrontLeft(Switch):
         return self.vehicle.climatisation_zone_front_left
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation_one_setting('zoneFrontLeftEnabled',True)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('zoneFrontLeftEnabled',True)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation_one_setting('zoneFrontLeftEnabled',False)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('zoneFrontLeftEnabled',False)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -990,12 +1059,18 @@ class ClimatisationSettingZoneFrontRight(Switch):
         return self.vehicle.climatisation_zone_front_right
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation_one_setting('zoneFrontRightEnabled',True)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('zoneFrontRightEnabled',True)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation_one_setting('zoneFrontRightEnabled',False)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('zoneFrontRightEnabled',False)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1024,12 +1099,18 @@ class ClimatisationSettingAtUnlock(Switch):
         return self.vehicle.climatisation_at_unlock
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation_one_setting('climatisationAtUnlock',True)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('climatisationAtUnlock',True)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation_one_setting('climatisationAtUnlock',False)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('climatisationAtUnlock',False)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1058,12 +1139,18 @@ class ClimatisationSettingWindowHeatingEnabled(Switch):
         return self.vehicle.climatisation_window_heating_enabled
 
     async def turn_on(self):
-        await self.vehicle.set_climatisation_one_setting('windowHeatingEnabled',True)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('windowHeatingEnabled',True)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_climatisation_one_setting('windowHeatingEnabled',False)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_climatisation_one_setting('windowHeatingEnabled',False)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1093,12 +1180,18 @@ class PHeaterHeating(Switch):
         return self.vehicle.pheater_heating
 
     async def turn_on(self):
-        await self.vehicle.set_pheater(mode='heating', spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_pheater(mode='heating', spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_pheater(mode='off', spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_pheater(mode='off', spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1123,12 +1216,18 @@ class PHeaterVentilation(Switch):
         return self.vehicle.pheater_ventilation
 
     async def turn_on(self):
-        await self.vehicle.set_pheater(mode='ventilation', spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_pheater(mode='ventilation', spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_pheater(mode='off', spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_pheater(mode='off', spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1152,12 +1251,18 @@ class SlowCharge(Switch):
         return self.vehicle.slow_charge
 
     async def turn_on(self):
-        await self.vehicle.set_charger_current('reduced')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_charger_current('reduced')
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_charger_current('maximum')
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_charger_current('maximum')
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1238,12 +1343,18 @@ class ChargingBatteryCare(Switch):
         return self.vehicle.charging_battery_care
 
     async def turn_on(self):
-        await self.vehicle.set_battery_care(True)
-        #await self.vehicle.update() 
+        try:
+            await self.vehicle.set_battery_care(True)
+            #await self.vehicle.update() 
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_battery_care(False)
-        #await self.vehicle.update() 
+        try:
+            await self.vehicle.set_battery_care(False)
+            #await self.vehicle.update() 
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1276,18 +1387,24 @@ class ClimatisationTimer1(Switch):
         return False
 
     async def turn_on(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=1, action="on")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=1, action="on", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=1, action="on")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=1, action="on", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=1, action="off")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=1, action="off", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=1, action="off")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=1, action="off", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1314,18 +1431,24 @@ class ClimatisationTimer2(Switch):
         return False
 
     async def turn_on(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=2, action="on")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=2, action="on", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=2, action="on")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=2, action="on", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=2, action="off")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=2, action="off", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=2, action="off")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=2, action="off", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1352,18 +1475,24 @@ class ClimatisationTimer3(Switch):
         return False
 
     async def turn_on(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=3, action="on")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=3, action="on", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=3, action="on")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=3, action="on", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
-            await self.vehicle.set_climatisation_timer_active(id=3, action="off")
-        else:
-            await self.vehicle.set_auxiliary_heating_timer_active(id=3, action="off", spin=self.spin)
-        #await self.vehicle.update()
+        try:
+            if self.vehicle._relevantCapabilties.get('climatisationTimers', {}).get('active', False):
+                await self.vehicle.set_climatisation_timer_active(id=3, action="off")
+            else:
+                await self.vehicle.set_auxiliary_heating_timer_active(id=3, action="off", spin=self.spin)
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1387,12 +1516,18 @@ class DepartureTimer1(Switch):
         return False
 
     async def turn_on(self):
-        await self.vehicle.set_timer_active(id=1, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=1, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_timer_active(id=1, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=1, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1420,12 +1555,18 @@ class DepartureTimer2(Switch):
         return False
 
     async def turn_on(self):
-        await self.vehicle.set_timer_active(id=2, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=2, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_timer_active(id=2, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=2, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1452,12 +1593,18 @@ class DepartureTimer3(Switch):
         return False
 
     async def turn_on(self):
-        await self.vehicle.set_timer_active(id=3, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=3, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_timer_active(id=3, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_timer_active(id=3, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1483,12 +1630,18 @@ class DepartureProfile1(Switch):
             return False
 
     async def turn_on(self):
-        await self.vehicle.set_departure_profile_active(id=1, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=1, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_departure_profile_active(id=1, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=1, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1511,12 +1664,18 @@ class DepartureProfile2(Switch):
             return False
 
     async def turn_on(self):
-        await self.vehicle.set_departure_profile_active(id=2, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=2, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_departure_profile_active(id=2, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=2, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1539,12 +1698,18 @@ class DepartureProfile3(Switch):
             return False
 
     async def turn_on(self):
-        await self.vehicle.set_departure_profile_active(id=3, action="on")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=3, action="on")
+            #await self.vehicle.update()
+        except:
+            raise
 
     async def turn_off(self):
-        await self.vehicle.set_departure_profile_active(id=3, action="off")
-        #await self.vehicle.update()
+        try:
+            await self.vehicle.set_departure_profile_active(id=3, action="off")
+            #await self.vehicle.update()
+        except:
+            raise
 
     @property
     def assumed_state(self):
@@ -1593,13 +1758,13 @@ class ChargingState(BinarySensor):
         #mode = self.vehicle.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('mode', '')
         state = self.vehicle.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('status', '')
         type = self.vehicle.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('type', '')
-        mode = self.vehicle.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('chargeMode', '')
-        if state in {'charging','Charging', 'conservation','Conservation'}:
-            attr['state']=state.lower()
-            if type != '':
-                attr['type']=type
-            if mode != '':
-                attr['mode']=mode
+        #mode = self.vehicle.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('chargeMode', '')
+        if state !='': #in {'charging','Charging', 'conservation','Conservation'}:
+            attr['state']=state
+        if type != '':
+            attr['type']=type
+        #if mode != '':
+        #    attr['mode']=mode
         return attr
 
 class AreaAlarm(BinarySensor):

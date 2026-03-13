@@ -28,8 +28,9 @@ from .exceptions import (
     PyCupraEULAException,
     PyCupraLoginFailedException,
     PyCupraInvalidRequestException,
-    PyCupraRequestInProgressException,
-    PyCupraServiceUnavailable
+    PyCupraMarketingConsentException,
+    #PyCupraRequestInProgressException,
+    #PyCupraServiceUnavailable
 )
 
 from aiohttp import ClientSession, ClientTimeout
@@ -104,6 +105,7 @@ class EUDAConnection:
         self.addToAnonymisationKeys('vin')
         self._error401 = False
         self._error403 = False
+        self._loginError = None
         # for file processing and information extraction
         self.rawData: dict = {}
         self.currentData: dict = {}
@@ -247,16 +249,21 @@ class EUDAConnection:
                         errorTxt = parse_qs(urlparse(location).query).get('error', '')[0]
                         if errorTxt == 'login.error.throttled':
                             timeout = parse_qs(urlparse(location).query).get('enableNextButtonAfterSeconds', '')[0]
+                            self._loginError = f'Account is locked for another {timeout} seconds'
                             raise PyCupraAccountLockedException(f'Account is locked for another {timeout} seconds')
                         elif errorTxt == 'login.errors.password_invalid':
+                            self._loginError = f'Invalid credentials'
                             raise PyCupraAuthenticationException('Invalid credentials')
                         else:
                             self._LOGGER.warning(f'Login failed: {errorTxt}')
+                        self._loginError = f'Login failed: {errorTxt}'
                         raise PyCupraLoginFailedException(errorTxt)
                     if 'terms-and-conditions' in location:
+                        self._loginError = f'The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
                         raise PyCupraEULAException('The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
-                    #if 'consent' in location:
-                    #    raise PyCupraMarketingConsentException('The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
+                    if 'consent/marketing' in location:
+                        self._loginError = f'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        raise PyCupraMarketingConsentException('The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
                     if 'user_id' in location: # Get the user_id which is needed for some later requests
                         self._user_id=parse_qs(urlparse(location).query).get('user_id', [''])[0]
                         self.addToAnonymisationDict(self._user_id,'[USER_ID_ANONYMISED]')
@@ -276,7 +283,7 @@ class EUDAConnection:
                     maxDepth -= 1
                     if maxDepth == 0:
                         raise PyCupraException('Too many redirects')
-            except (PyCupraException, PyCupraEULAException, PyCupraAuthenticationException, PyCupraAccountLockedException, PyCupraLoginFailedException):
+            except (PyCupraException, PyCupraEULAException, PyCupraAuthenticationException, PyCupraAccountLockedException, PyCupraLoginFailedException, PyCupraMarketingConsentException):
                 self._LOGGER.warning(f'Running into login problems with location={location}')
                 raise
             except Exception as e:
@@ -511,23 +518,31 @@ class EUDAConnection:
                 self._LOGGER.warning('Received "Unauthorized" while fetching data. This can occur if login expired.')
                 if True: #self._error401 != True:
                     self._error401 = True
-                    rc=await self._authorize(self._session_auth_brand)
-                    if rc:
-                        self._LOGGER.info('Successful relogin after error 401.')
-                        self._error401 = False
-                        return data # Leave get() without debug output of http request information
-                    else:
+                    try:
+                        rc=await self._authorize(self._session_auth_brand)
+                        if rc:
+                            self._LOGGER.info('Successful relogin after error 401.')
+                            self._error401 = False
+                            return data # Leave get() without debug output of http request information
+                        else:
+                            self._LOGGER.info('Refresh of tokens after error 401 not successful.')
+                    except Exception as e:
+                        self._LOGGER.error(f"Error when reauthorising after error 401. Error: {e}")
                         self._LOGGER.info('Refresh of tokens after error 401 not successful.')
             if error.status == 403:
                 self._LOGGER.warning('Received "Forbidden" while fetching data. This can occur if login expired.')
                 if True: #self._error403 != True:
                     self._error403 = True
-                    rc=await self._authorize(self._session_auth_brand)
-                    if rc:
-                        self._LOGGER.info('Successful relogin after error 403.')
-                        self._error403 = False
-                        return data # Leave get() without debug output of http request information
-                    else:
+                    try:
+                        rc=await self._authorize(self._session_auth_brand)
+                        if rc:
+                            self._LOGGER.info('Successful relogin after error 403.')
+                            self._error403 = False
+                            return data # Leave get() without debug output of http request information
+                        else:
+                            self._LOGGER.info('Refresh of tokens after error 403 not successful.')
+                    except Exception as e:
+                        self._LOGGER.error(f"Error when reauthorising after error 403. Error: {e}")
                         self._LOGGER.info('Refresh of tokens after error 403 not successful.')
             elif error.status == 400:
                 self._LOGGER.error('Received "Bad Request" from server. The request might be malformed or not implemented correctly for this vehicle.')

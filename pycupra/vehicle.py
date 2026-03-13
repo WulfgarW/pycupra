@@ -63,6 +63,7 @@ class Vehicle:
         self.firebaseStatus = FIREBASE_STATUS_NOT_INITIALISED
         self.firebase = None
         self.updateCallback = None
+        self._haNotification = None
 
         self._requests = {
             'climatisationtimer': {'status': '', 'timestamp': DATEZERO},
@@ -283,7 +284,7 @@ class Vehicle:
                 await asyncio.gather(
                     #self.get_statusreport(),
                     self.get_charger(),
-                    self.get_preheater(),
+                    #self.get_preheater(),
                     self.get_climater(),
                     self.get_trip_statistic(), 
                     self.get_position(),
@@ -556,7 +557,7 @@ class Vehicle:
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
                 raise PyCupraInvalidRequestException(f'Invalid data type.')
-                self.setWantedStateOfProperty('batterycharge', 'settings', 'target_soc', value=int(value))
+            self.setWantedStateOfProperty('batterycharge', 'settings', 'target_soc', value=int(value))
             return await self.set_charger(action, data)
         else:
             self._LOGGER.error('No charger support.')
@@ -1946,14 +1947,14 @@ class Vehicle:
     def model(self):
         """Return model"""
         if self._specification.get('carBody', False):
-            model = self._specification.get('factoryModel', False).get('vehicleModel', 'Unknown') + ' ' + self._specification.get('carBody', '')
+            model = self._specification.get('factoryModel', {}).get('vehicleModel', 'Unknown') + ' ' + self._specification.get('carBody', '')
             return model
-        return self._specification.get('factoryModel', False).get('vehicleModel', 'Unknown')
+        return self._specification.get('factoryModel', {}).get('vehicleModel', 'Unknown')
 
     @property
     def is_model_supported(self) -> bool:
         """Return true if model is supported."""
-        if self._specification.get('factoryModel', False).get('vehicleModel', False):
+        if self._specification.get('factoryModel', {}).get('vehicleModel', False):
             return True
         else:
             return False
@@ -1961,12 +1962,12 @@ class Vehicle:
     @property
     def model_year(self):
         """Return model year"""
-        return self._specification.get('factoryModel', False).get('modYear', 'Unknown')
+        return self._specification.get('factoryModel', {}).get('modYear', 'Unknown')
 
     @property
     def is_model_year_supported(self) -> bool:
         """Return true if model year is supported."""
-        if self._specification.get('factoryModel', False).get('modYear', False):
+        if self._specification.get('factoryModel', {}).get('modYear', False):
             return True
         else:
             return False
@@ -2440,15 +2441,15 @@ class Vehicle:
     def charging_mode(self):
         """Return vehicle's charge mode."""
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
-        if check not in ('manual','profile','timer'):
+        if check not in ('manual','profile','timer', 'off'):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging mode. Please open an issue.")
-        if check == 'manual':
-            return 'Manual'
-        if check == 'profile':
-            return 'Profile'
-        if check == 'timer':
-            return 'Timer'
-        return check
+        #if check == 'manual':
+        #    return 'Manual'
+        #if check == 'profile':
+        #    return 'Profile'
+        #if check == 'timer':
+        #    return 'Timer'
+        return check.capitalize()
 
     @property
     def is_charging_mode_supported(self) -> bool:
@@ -2464,12 +2465,14 @@ class Vehicle:
     def charging_preferred_mode(self):
         """Return vehicle's preferred charge mode."""
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('preferredChargeMode','')
-        if check not in ('manual','preferredChargingTimes'):
+        if check not in ('manual','preferredChargingTimes',''):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging preferred mode. Please open an issue.")
         if check == 'manual':
             return 'Now'
         if check == 'preferredChargingTimes':
             return 'Scheduled'
+        if check == '':
+            return 'unknown'
         return check
 
     @property
@@ -4138,10 +4141,10 @@ class Vehicle:
         if self._requests.get(requestType, None)==None:
             raise PyCupraInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
         if requestType in {'batterycharge', 'departuretimer','departureprofile', 'climatisationtimer', 'climatisation', 'preheater', 'lock', 'honkandflash'}:
-            waitTimeInMinutes=1
+            waitTimeInMinutes=3
             cleanLevel1=requestType
         elif requestType in {'refresh'}:
-            waitTimeInMinutes=2
+            waitTimeInMinutes=3
             cleanLevel1=requestType
         else:
             raise PyCupraInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
@@ -4179,7 +4182,7 @@ class Vehicle:
             self._LOGGER.warning('setWantedStateOfProperty() called with level1=None. Cannot set value.')
         return False
 
-    def cleanWantedStateOfProperty(self, level1=None, level2=None, level3=None):
+    def cleanWantedStateOfProperty(self, level1=None, level2=None, level3=None) -> bool:
         if level1!=None:
             if level2!=None and level3!=None:
                 if self._wantedStateOfProperty.get(level1, {}).get(level2,{}).get(level3, None)!=None:
@@ -4195,6 +4198,8 @@ class Vehicle:
             self._LOGGER.warning('cleanWantedStateOfProperty() called with level1=None. Cannot clean that.')
         return False
 
+    def clearHANotification(self):
+        self._haNotification = None
 
     async def stopFirebase(self) -> int:
         # Check if firebase is activated
@@ -4317,6 +4322,7 @@ class Vehicle:
                     if self._requests.get('lock', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['lock']['status'] = 'Request failed'
+                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
                         else:
                             self._requests['lock']['status'] = 'Request executed'
             if (self._last_get_statusreport < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
@@ -4383,7 +4389,7 @@ class Vehicle:
                 await asyncio.sleep(5)
         elif type in ('charging-status-changed', 'charging-started', 'charging-stopped', 'charging-settings-updated', 'charging-charge-mode-changed', 'charging-settings-changed',
                       'charging-event-status-started', 'charging-finished', 'charging-profile-changed', 'charging-target-soc-reached', 'charging-error-infrastructure',
-                      'charging-start-error'):
+                      'charging-start-error', 'charging-settings-failed-timeout'):
             if self._requests.get('batterycharge', {}).get('id', None):
                 openRequest= self._requests.get('batterycharge', {}).get('id', None)
                 if openRequest == requestId:
@@ -4392,6 +4398,7 @@ class Vehicle:
                     if self._requests.get('batterycharge', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['batterycharge']['status'] = 'Request failed'
+                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
                         else:
                             self._requests['batterycharge']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('charging') # clean the charging elements of self._wantedStateOfProperty
@@ -4415,6 +4422,7 @@ class Vehicle:
                     if self._requests.get('climatisation', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['climatisation']['status'] = 'Request failed'
+                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
                         else:
                             self._requests['climatisation']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
@@ -4453,6 +4461,7 @@ class Vehicle:
                     if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['refresh']['status'] = 'Request failed'
+                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
                         else:
                             self._requests['refresh']['status'] = 'Request executed'
             if (self._last_full_update < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
@@ -4472,7 +4481,7 @@ class Vehicle:
             # Nothing else to do
         elif type in ('vehicle-connection-state-offline'):
             self._LOGGER.info(f'   Got notification \'{type}\'. Let\'s hope, the vehicle will be back online soon. ')
-        elif type in ('vehicle-area-alert-added', 'vehicle-area-alert-updated', 'access-status-changed', 'rah-or-rav-status-changed'):
+        elif type in ('vehicle-area-alert-added', 'vehicle-area-alert-updated', 'access-status-changed', 'rah-or-rav-status-changed',  'user-capabilities-change'):
             self._LOGGER.info(f'   Intentionally ignoring a notification of type \'{type}\' ')
         else:
             self._LOGGER.warning(f'   Don\'t know what to do with a notification of type \'{type}\'. Please open an issue.')

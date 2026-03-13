@@ -1505,7 +1505,7 @@ class Connection:
                 raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
                 data = {'id': '', 'state' : ''}
-                if 'requestId' in response:
+                if 'requestId' in response or 'actionId' in response:
                     data['state'] = 'Request accepted'
                 for key in response:
                     if isinstance(response.get(key), dict):
@@ -1538,7 +1538,7 @@ class Connection:
                 raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
                 data = {'id': '', 'state' : ''}
-                if 'requestId' in response:
+                if 'requestId' in response or 'actionId' in response:
                     data['state'] = 'Request accepted'
                 for key in response:
                     if isinstance(response.get(key), dict):
@@ -1610,16 +1610,20 @@ class Connection:
 
     async def setCharger(self, vin, baseurl, mode, data) -> dict | bool:
         """Start/Stop charger or change settings."""
-        if mode in {'start', 'stop'}:
-            capability='charging'
-            return await self._setViaAPI((API_REQUESTS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode))
-        elif mode=='settings':
-            return await self._setViaAPI((API_CHARGING+"/{mode}").format(baseurl=baseurl, vin=vin, mode=mode), json=data)
-        elif mode=='update-settings' or mode=='update-battery-care':
-            capability='charging'
-            return await self._setViaAPI((API_ACTIONS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode), json=data)
-        else:
-            self._LOGGER.error(f'Not yet implemented. Mode: {mode}. Command ignored')
+        try:
+            if mode in {'start', 'stop'}:
+                capability='charging'
+                return await self._setViaAPI((API_REQUESTS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode))
+            elif mode=='settings':
+                return await self._setViaAPI((API_CHARGING+"/{mode}").format(baseurl=baseurl, vin=vin, mode=mode), json=data)
+            elif mode=='update-settings' or mode=='update-battery-care':
+                capability='charging'
+                return await self._setViaAPI((API_ACTIONS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode), json=data)
+            else:
+                self._LOGGER.error(f'Not yet implemented. Mode: {mode}. Command ignored')
+                raise PyCupraException(f"Invalid mode '{mode}' for setCharger")
+        except Exception as error:
+            self._LOGGER.error(f'Error: {error}')
             raise
 
     async def setClimater(self, vin, baseurl, mode, data, spin) -> dict | bool:
@@ -1655,7 +1659,7 @@ class Connection:
                 return await self._setViaAPI((API_AUXILIARYHEATING+'/stop').format(baseurl=baseurl, vin=vin))
             else: # Unknown modes
                 self._LOGGER.error(f'Unbekannter setClimater mode: {mode}. Command ignored')
-                return False
+                raise PyCupraException(f"Invalid mode '{mode}' for setClimater")
         except:
             raise
         return False
