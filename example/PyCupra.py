@@ -532,11 +532,11 @@ async def main():
             await connection.get_vehicles()
 
             eudaRunning = False
+            eudaSession= ClientSession(headers={'Connection': 'keep-alive'})
+            print('')
+            print(f"Initiating new session to EU Data Act portal with {credentials.get('username')} as username")
+            eudaConnection = EUDAConnection(eudaSession, BRAND, credentials.get('username'), credentials.get('password'), PRINTRESPONSE, anonymise=False, logPrefix='')
             if credentials.get('useEudaFiles',False):
-                eudaSession= ClientSession(headers={'Connection': 'keep-alive'})
-                print('')
-                print(f"Initiating new session to EU Data Act portal with {credentials.get('username')} as username")
-                eudaConnection = EUDAConnection(eudaSession, BRAND, credentials.get('username'), credentials.get('password'), PRINTRESPONSE, anonymise=False, logPrefix='')
                 print("Attempting to login")
                 print(datetime.now())
                 eudaRunning = await eudaConnection.doLogin()

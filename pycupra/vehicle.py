@@ -4322,7 +4322,8 @@ class Vehicle:
                     if self._requests.get('lock', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['lock']['status'] = 'Request failed'
-                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['lock']['status'] = 'Request executed'
             if (self._last_get_statusreport < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
@@ -4389,7 +4390,7 @@ class Vehicle:
                 await asyncio.sleep(5)
         elif type in ('charging-status-changed', 'charging-started', 'charging-stopped', 'charging-settings-updated', 'charging-charge-mode-changed', 'charging-settings-changed',
                       'charging-event-status-started', 'charging-finished', 'charging-profile-changed', 'charging-target-soc-reached', 'charging-error-infrastructure',
-                      'charging-start-error', 'charging-settings-failed-timeout'):
+                      'charging-start-error', 'charging-settings-failed-timeout', 'charging-error'):
             if self._requests.get('batterycharge', {}).get('id', None):
                 openRequest= self._requests.get('batterycharge', {}).get('id', None)
                 if openRequest == requestId:
@@ -4398,7 +4399,8 @@ class Vehicle:
                     if self._requests.get('batterycharge', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['batterycharge']['status'] = 'Request failed'
-                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['batterycharge']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('charging') # clean the charging elements of self._wantedStateOfProperty
@@ -4422,7 +4424,8 @@ class Vehicle:
                     if self._requests.get('climatisation', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['climatisation']['status'] = 'Request failed'
-                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['climatisation']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
@@ -4461,7 +4464,8 @@ class Vehicle:
                     if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['refresh']['status'] = 'Request failed'
-                            self._haNotification = f"Received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
+                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['refresh']['status'] = 'Request executed'
             if (self._last_full_update < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
