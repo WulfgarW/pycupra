@@ -15,9 +15,6 @@ from .utilities import find_path, is_valid_path, datetime2string
 from .exceptions import (
     PyCupraConfigException,
     PyCupraException,
-    PyCupraEULAException,
-    PyCupraServiceUnavailable,
-    PyCupraThrottledException,
     PyCupraInvalidRequestException,
     PyCupraRequestInProgressException
 )
@@ -297,7 +294,7 @@ class Vehicle:
                     return_exceptions=True
                 )
                 self._last_full_update = datetime.now(tz=None)
-                self._LOGGER.debug(f'Performed full update for vehicle with VIN {self._connection.anonymise(self.vin)}.')
+                self._LOGGER.info(f'Performed full update for vehicle with VIN {self._connection.anonymise(self.vin)}.')
                 self._LOGGER.debug(f'So far about {self._connection._sessionRequestCounter} API calls since {self._connection._sessionRequestTimestamp}.')
             except:
                 raise PyCupraException("Update failed")
@@ -383,15 +380,6 @@ class Vehicle:
         if self._relevantCapabilties.get('parkingPosition', {}).get('active', False):
             data = await self._connection.getPosition(self.vin, self._apibase)
             if data:
-                # Reset requests remaining to 15 if parking time has been updated
-                #if data.get('findCarResponse', {}).get('parkingTimeUTC', False):
-                #    try:
-                #        newTime = data.get('findCarResponse').get('parkingTimeUTC')
-                #        oldTime = self.attrs.get('findCarResponse').get('parkingTimeUTC')
-                #        if newTime > oldTime:
-                #            self.requests_remaining = 15
-                #    except:
-                #        pass
                 if data.get('findCarResponse',{}):
                     # To update the last known position, if the API provided a position
                     data['lastValidFindCarResponse']=data.get('findCarResponse',{})
@@ -2198,12 +2186,6 @@ class Vehicle:
     @property
     def battery_level(self) -> int:
         """Return battery level"""
-        #if self.attrs.get('charging', False):
-        #    return int(self.attrs.get('charging').get('status', {}).get('battery', {}).get('currentSocPercentage', 0))
-        #if self.attrs.get('mycar', False):
-        #    return int(self.attrs.get('mycar',{}).get('services', {}).get('charging', {}).get('currentPct', 0))
-        #else:
-        #    return 0
         level = 0
         if self.attrs.get('mycar', False):
             level = int(self.attrs.get('mycar',{}).get('services', {}).get('charging', {}).get('currentPct', 0))
@@ -2340,16 +2322,12 @@ class Vehicle:
         """Return charging power in watts."""
         if self.attrs.get('charging', False):
             return self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('chargedPowerInKw', 0.0)
-            #return int(self.attrs.get('charging', {}).get('chargingPowerInWatts', 0))  # From the old seatconnect, presumably not working
         else:
             return 0.0
 
     @property
     def is_charging_power_supported(self) -> bool:
         """Return true if charging power is supported."""
-        #if self.attrs.get('charging', False): # From the old seatconnect, presumably not working
-        #    if self.attrs.get('charging', {}).get('chargingPowerInWatts', False) is not False:
-        #        return True
         if self.attrs.get('charging', False):
             if 'status' in self.attrs.get('charging'):
                 if 'charging' in self.attrs.get('charging')['status']:
@@ -2380,16 +2358,12 @@ class Vehicle:
         """Return charge rate in km per h."""
         if self.attrs.get('charging', False):
             return int(self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('rateInKmph', 0))
-            #return int(self.attrs.get('charging', {}).get('chargingRateInKilometersPerHour', 0))
         else:
             return 0
 
     @property
     def is_charge_rate_supported(self) -> bool:
         """Return true if charge rate is supported."""
-        #if self.attrs.get('charging', False): # From the old seatconnect, presumably not working
-        #    if self.attrs.get('charging', {}).get('chargingRateInKilometersPerHour', False) is not False:
-        #        return True
         if self.attrs.get('charging', False):
             if 'status' in self.attrs.get('charging'):
                 if 'charging' in self.attrs.get('charging')['status']:
@@ -2443,12 +2417,6 @@ class Vehicle:
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
         if check not in ('manual','profile','timer', 'off'):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging mode. Please open an issue.")
-        #if check == 'manual':
-        #    return 'Manual'
-        #if check == 'profile':
-        #    return 'Profile'
-        #if check == 'timer':
-        #    return 'Timer'
         return check.capitalize()
 
     @property
@@ -2771,7 +2739,6 @@ class Vehicle:
         """Return adblue range."""
         if self.attrs.get('ranges', False):
             filteredItems = [rangeItem for rangeItem in self.attrs.get('ranges', False) if rangeItem['rangeName'] == 'adBlueKm']
-            #filteredItems = [rangeItem for rangeItem in self.attrs.get('ranges', False) if rangeItem['rangeName'] == 'gasolineRangeKm']
             if len(filteredItems)>0:
                 return filteredItems[0].get('value', 0.0)
         return 0.0
@@ -2781,7 +2748,6 @@ class Vehicle:
         """Return true if adblue range is supported."""
         if self.attrs.get('ranges', False):
             filteredItems = [rangeItem for rangeItem in self.attrs.get('ranges', False) if rangeItem['rangeName'] == 'adBlueKm']
-            #filteredItems = [rangeItem for rangeItem in self.attrs.get('ranges', False) if rangeItem['rangeName'] == 'gasolineRangeKm']
             if len(filteredItems)>0:
                 return True
         return False
@@ -4474,7 +4440,17 @@ class Vehicle:
                     await self.updateCallback(1)
             else:
                 self._LOGGER.debug(f'It is now {datetime.now(tz=None)}. Last full update was at {self._last_full_update}. So no need to update.')
-                # Wait 5 seconds
+                # Wait 2 seconds
+                await asyncio.sleep(2)
+        elif type == 'vehicle-connection-state-online':
+            lastQueriedOn = datetime.strptime(self._properties.get('capabilitiesQueriedOn')[:19]+'Z', '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc).astimezone(tz=None)
+            if lastQueriedOn < (datetime.now(tz=None) - timedelta(seconds= 30)).astimezone(tz=None) or self.deactivated or openRequest == requestId:
+                # Do full update only if the last one is older than timedelta or vehicle is deactivated or if the notification belongs to an open request initiated by PyCupra
+                if self.updateCallback:
+                    await self.updateCallback(2)
+            else:
+                self._LOGGER.debug(f'It is now {datetime.now(tz=None)}. Last update of connection status was at {lastQueriedOn}. So no need to update.')
+                # Wait 2 seconds
                 await asyncio.sleep(2)
         elif type == 'vehicle-honk-and-flash-started':
             if self._requests.get('refresh', {}).get('id', None):

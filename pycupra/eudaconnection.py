@@ -769,6 +769,8 @@ class EUDAConnection:
             response = await self.get(EUDA_API_DATACLUSTERS.format(baseurl=baseurl, vin=vin, type=type))
             if response.get('Name', '')!='':
                 data[type] = response
+            elif response.get('status_code', {}) == 404 and type == 'partial':
+                self._LOGGER.error(f'Could not find a customised data request for your account, HTTP status code: {response.get("status_code")}. Did you forget to create one?')
             elif response.get('status_code', {}):
                 self._LOGGER.warning(f'Could not fetch data cluster information, HTTP status code: {response.get("status_code")}')
             else:
