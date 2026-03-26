@@ -51,6 +51,7 @@ from .const import (
     EUDA_API_FILE_DOWNLOAD,
     EUDA_API_TOKEN,
     EUDA_API_PERMISSION_CHECK,
+    EUDA_API_LOGOUT,
     EUDA_URL_DETAILS,
 
     EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY,
@@ -493,11 +494,19 @@ class EUDAConnection:
     async def logout(self) -> None:
         """Logout, revoke tokens."""
         self._LOGGER.info(f'Initiating logout.')
-        #self._session_headers.pop('Authorization', None)
-        #self._session_headers.pop('tokentype', None)
-        #self._session_headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        url = EUDA_API_LOGOUT.format(baseurl=EUDA_BASE_URL)
+        #response = await self.get(url)
+        response = await self._session._request(
+            method= METH_GET,
+            str_or_url= url,
+            headers=self._session_headers,
+            cookies=self._session_cookies,
+        )
+        if response.status !=200:
+            self._LOGGER.error(f'Request for "{url}" returned with status code [{response.status}], response: {response}')
+            raise PyCupraException(f'http.get for logout failed. Response status: {response.status}')
+        self._LOGGER.info(f'Sent logout call to API. Response status = {response.status}')
         self._clear_cookies()
-        self._LOGGER.warning('OPEN TO-DO. Code to logout from EUDA portal')
 
 
   # HTTP methods to API

@@ -245,6 +245,7 @@ EUDA_URL_DETAILS = '{baseurl}/content/euda/de/en/user/details?vin={vin}'
 
 EUDA_API_TOKEN = '{baseurl}/libs/granite/csrf/token.json'
 EUDA_API_PERMISSION_CHECK = '{baseurl}/services/permissioncheck'
+EUDA_API_LOGOUT = '{baseurl}/services/logout' # still in test
 
 EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY = 'ecd266dd-f536-39c2-a575-352216b87f39'
 EUDA_SHORT_TERM_DATA_MILEAGE_KEY = '9f55581a-4fa2-3570-9c9e-b80d210b9a42'

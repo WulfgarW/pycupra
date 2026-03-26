@@ -1899,6 +1899,8 @@ class Vehicle:
 
     @property
     def deactivated(self) -> bool:
+        if self._connectivities == None: # If API endpoint did not respond, self._connectivities can have the value None
+            return False # Assume, that the vehicle is not deactivated
         if 'mode' in self._connectivities:
             if self._connectivities.get('mode','')=='online':
                 return False
@@ -1906,6 +1908,8 @@ class Vehicle:
 
     @property
     def is_deactivated_supported(self) -> bool:
+        if self._connectivities == None: # If API endpoint did not respond, self._connectivities can have the value None
+            return True
         if 'mode' in self._connectivities:
             return True
         return False
@@ -2415,7 +2419,7 @@ class Vehicle:
     def charging_mode(self):
         """Return vehicle's charge mode."""
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
-        if check not in ('manual','profile','timer', 'off'):
+        if check not in ('manual','profile','timer', 'off', 'invalid'):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging mode. Please open an issue.")
         return check.capitalize()
 
@@ -4356,7 +4360,7 @@ class Vehicle:
                 await asyncio.sleep(5)
         elif type in ('charging-status-changed', 'charging-started', 'charging-stopped', 'charging-settings-updated', 'charging-charge-mode-changed', 'charging-settings-changed',
                       'charging-event-status-started', 'charging-finished', 'charging-profile-changed', 'charging-target-soc-reached', 'charging-error-infrastructure',
-                      'charging-start-error', 'charging-settings-failed-timeout', 'charging-error'):
+                      'charging-start-error', 'charging-settings-failed-timeout', 'charging-error', 'charging-stop-error'):
             if self._requests.get('batterycharge', {}).get('id', None):
                 openRequest= self._requests.get('batterycharge', {}).get('id', None)
                 if openRequest == requestId:
@@ -4421,7 +4425,7 @@ class Vehicle:
             self._states.update(areaAlarm)
             if self.updateCallback:
                 await self.updateCallback(2)
-        elif type in ('vehicle-wake-up-succeeded', 'vehicle-wakeup-succeeded', 'vehicle-wakeup-failed'):
+        elif type in ('vehicle-wake-up-succeeded', 'vehicle-wakeup-succeeded', 'vehicle-wakeup-failed', 'vehicle-wake-up-failed'):
             if self._requests.get('refresh', {}).get('id', None):
                 openRequest= self._requests.get('refresh', {}).get('id', None)
                 if openRequest == requestId:
