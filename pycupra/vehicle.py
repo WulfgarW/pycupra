@@ -190,7 +190,7 @@ class Vehicle:
                 self._LOGGER.debug('Could not fetch capabilities data')
             data = await self._connection.getConnectivities(self.vin, self._apibase)
             if data:
-                self._connectivities = data.get('connection')
+                self._connectivities = data
                 self._LOGGER.debug('Successfully updated connectivities information.')
             else:
                 self._LOGGER.debug('Could not fetch connectivities data')
@@ -1899,10 +1899,8 @@ class Vehicle:
 
     @property
     def deactivated(self) -> bool:
-        if self._connectivities == None: # If API endpoint did not respond, self._connectivities can have the value None
-            return False # Assume, that the vehicle is not deactivated
-        if 'mode' in self._connectivities:
-            if self._connectivities.get('mode','')=='online':
+        if 'remote-availability' in self._connectivities:
+            if self._connectivities.get('remote-availability','')=='online':
                 return False
         return True
 
@@ -1910,7 +1908,7 @@ class Vehicle:
     def is_deactivated_supported(self) -> bool:
         if self._connectivities == None: # If API endpoint did not respond, self._connectivities can have the value None
             return True
-        if 'mode' in self._connectivities:
+        if 'remote-availability' in self._connectivities:
             return True
         return False
 

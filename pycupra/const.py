@@ -174,7 +174,7 @@ API_AUXILIARYHEATING = '{baseurl}/v1/vehicles/{vin}/auxiliary-heating'          
 #'{baseurl}/v1/users/{self._user_id}/vehicles/{vin}/leads/history'
 #'{baseurl}/v1/users/{self._user-id}/vehicles/{vin}/consents/xxcryptickeyxxx?locale=en_DE' #{"userId":"xxxxxxx","locale":"en_DE","error":{"title":"Consent failed to load.","detail":"CUPRAApp_ME3_Vehicle_VehiclePermissions_MainViewAccepted_Low_Type1_Wrong"}}
 
-API_CONNECTION= '{APP_URI}/vehicles/{vin}/connection'
+API_CONNECTION= '{APP_URI}/v1/vehicles/{vin}/remote-availability' # until 26.03.2026 '{APP_URI}/vehicles/{vin}/connection'
 #API_CONSENTS='{APP_URI}/v1/users/{self._user_id}/consents'
 API_PSP='{baseurl}/v2/users/{userId}/vehicles/{vin}/psp'     # primary service provider (Werkstatt)
 API_USER_INFO= 'https://identity-userinfo.vwgroup.io/oidc/userinfo' #{"sub":"xxx","name":"xxx","given_name":"xxx","family_name":"xxx","nickname":"xxx","email":"###","email_verified":true,"birthdate":"###","updated_at":123456789,"picture":"https://customer-pictures.vwgroup.io/v1/###/profile-picture"}

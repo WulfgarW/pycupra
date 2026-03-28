@@ -893,24 +893,26 @@ class Connection:
                     vin = vehicle.get('vin', '')
                     self.addToAnonymisationDict(vin,'[VIN_ANONYMISED]')
                     response = await self.get(API_CAPABILITIES.format(APP_URI=APP_URI, userId=self._user_id, vin=vin))
-                    #self._session_headers['Accept'] = 'application/json'
                     if response.get('capabilities', False):
                         vehicle["capabilities"]=response.get('capabilities')
                         vehicle["platform"] = response.get('platform', 'MOD3')
                         vehicle["capabilitiesQueriedOn"] = response.get('queriedOn', '')
                     else:
-                        self._LOGGER.warning(f"Failed to aquire capabilities information about vehicle with VIN {vehicle}.")
+                        self._LOGGER.warning(f"Failed to aquire capabilities information about vehicle with VIN ending on {vin[-4:]}.")
                         if vehicle.get('capabilities',None)!=None:
                             self._LOGGER.warning(f"Keeping the old capability information.")
                         else:
                             self._LOGGER.warning(f"Initialising vehicle without capabilities.")
                             vehicle["capabilities"]=[]
-                    response = await self.get(API_CONNECTION.format(APP_URI=APP_URI, vin=vin))
-                    #self._session_headers['Accept'] = 'application/json'
-                    if response.get('connection', False):
-                        vehicle["connectivities"]=response.get('connection')
+                    data = await self.getConnectivities(vin, APP_URI)
+                    if data:
+                        vehicle["connectivities"]=data
+                        if data.get('remote-availability','') != 'online':
+                            self._LOGGER.warning(f"Vehicle with VIN ending on {vin[-4:]} is offline during initialisation.")
                     else:
-                        self._LOGGER.warning(f"Failed to aquire connection information about vehicle with VIN {vehicle}")
+                        self._LOGGER.warning(f"Failed to aquire connection information about vehicle with VIN ending on {vin[-4:]}.")
+                        # Initialising vehicle["connectivities"]
+                        vehicle["connectivities"]={'remote-availability' : 'unknown'}
                     api_vehicles.append(vehicle)
         except:
             raise
@@ -1024,7 +1026,7 @@ class Connection:
         data={}
         try:
             response = await self.get(API_CONNECTION.format(APP_URI=baseurl, vin=vin))
-            if response.get('connection', False):
+            if response.get('remote-availability', False):
                 data=response
             elif response.get('status_code', {}):
                 self._LOGGER.warning(f'Could not fetch connection information, HTTP status code: {response.get("status_code")}')
