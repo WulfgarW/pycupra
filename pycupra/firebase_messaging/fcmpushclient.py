@@ -294,43 +294,46 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         await self.writer.drain()  # type: ignore[union-attr]
 
     async def _receive_msg(self) -> Message | None:
-        if self.first_message:
-            r = await self.reader.readexactly(2)  # type: ignore[union-attr]
-            version, tag = struct.unpack("BB", r)
-            if version < MCS_VERSION and version != 38:
-                raise RuntimeError(f"protocol version {version} unsupported")
-            self.first_message = False
-        else:
-            r = await self.reader.readexactly(1)  # type: ignore[union-attr]
-            (tag,) = struct.unpack("B", r)
-        size = await self._read_varint32()
+        try:
+            if self.first_message:
+                r = await self.reader.readexactly(2)  # type: ignore[union-attr]
+                version, tag = struct.unpack("BB", r)
+                if version < MCS_VERSION and version != 38:
+                    raise RuntimeError(f"protocol version {version} unsupported")
+                self.first_message = False
+            else:
+                r = await self.reader.readexactly(1)  # type: ignore[union-attr]
+                (tag,) = struct.unpack("B", r)
+            size = await self._read_varint32()
 
-        self._log_verbose(
-            "Received message with tag %s and size %s",
-            tag,
-            size,
-        )
+            self._log_verbose(
+                "Received message with tag %s and size %s",
+                tag,
+                size,
+            )
 
-        if not size >= 0:
-            self._log_warn_with_limit("Unexpected message size %s", size)
-            return None
+            if not size >= 0:
+                self._log_warn_with_limit("Unexpected message size %s", size)
+                return None
 
-        buf = await self.reader.readexactly(size)  # type: ignore[union-attr]
+            buf = await self.reader.readexactly(size)  # type: ignore[union-attr]
 
-        msg_class = next(iter([c for c, t in MCS_MESSAGE_TAG.items() if t == tag]))
-        if not msg_class:
-            self._log_warn_with_limit("Unexpected message tag %s", tag)
-            return None
-        if isinstance(msg_class, str):
-            self._log_warn_with_limit("Unconfigured message class %s", msg_class)
-            return None
+            msg_class = next(iter([c for c, t in MCS_MESSAGE_TAG.items() if t == tag]))
+            if not msg_class:
+                self._log_warn_with_limit("Unexpected message tag %s", tag)
+                return None
+            if isinstance(msg_class, str):
+                self._log_warn_with_limit("Unconfigured message class %s", msg_class)
+                return None
 
-        payload = msg_class()  # type: ignore[operator]
-        payload.ParseFromString(buf)
-        self._log_verbose("Received payload: %s", self._msg_str(payload))
+            payload = msg_class()  # type: ignore[operator]
+            payload.ParseFromString(buf)
+            self._log_verbose("Received payload: %s", self._msg_str(payload))
 
-        return payload
-
+            return payload
+        except:
+            raise
+        
     async def _login(self) -> None:
         self.run_state = FcmPushClientRunState.STARTING_LOGIN
 

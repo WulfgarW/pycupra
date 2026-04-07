@@ -511,6 +511,8 @@ class Vehicle:
                 newValue = False
                 if data.get('maxChargeCurrentAc',None)=='reduced':
                     newValue= True
+                if self.checkForRunningRequests('batterycharge'):
+                    raise PyCupraRequestInProgressException('Charging action already in progress')
                 self.setWantedStateOfProperty('batterycharge', 'settings', 'slow_charge', value=newValue)
             return await self.set_charger('settings', data)
         else:
@@ -545,6 +547,8 @@ class Vehicle:
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
                 raise PyCupraInvalidRequestException(f'Invalid data type.')
+            if self.checkForRunningRequests('batterycharge'):
+                raise PyCupraRequestInProgressException('Charging action already in progress')
             self.setWantedStateOfProperty('batterycharge', 'settings', 'target_soc', value=int(value))
             return await self.set_charger(action, data)
         else:
@@ -564,6 +568,8 @@ class Vehicle:
             else:
                 self._LOGGER.error(f'Data type passed is invalid.')
                 raise PyCupraInvalidRequestException(f'Invalid data type.')
+            if self.checkForRunningRequests('batterycharge'):
+                raise PyCupraRequestInProgressException('Charging action already in progress')
             self.setWantedStateOfProperty('batterycharge', 'settings', 'charging_battery_care', value=value)
             return await self.set_charger('update-battery-care', data)
         else:
@@ -2151,9 +2157,11 @@ class Vehicle:
     @property
     def charging(self) -> int:
         """Return battery level"""
-        #cstate = self.attrs.get('charging').get('status').get('charging').get('state','')
+        cstate2 = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('state', '')
         cstate = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
-        return 1 if cstate in ['charging', 'Charging'] else 0
+        if cstate in ['charging', 'Charging'] or cstate2 in ['charging', 'Charging']:
+            return 1
+        return 0
 
     @property
     def is_charging_supported(self) -> bool:
@@ -2394,9 +2402,9 @@ class Vehicle:
     @property
     def charging_state(self):
         """Return true if vehicle is charging."""
-        #check = self.attrs.get('charging', {}).get('status', {}).get('state', '')
+        check2 = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('state', '')
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
-        if check in ('charging','Charging'):
+        if check in ('charging','Charging') or check2 in ('charging','Charging'):
             return True
         else:
             return False
@@ -4140,6 +4148,8 @@ class Vehicle:
                         if level3!=None:
                             self._wantedStateOfProperty[level1][level2]={}
             if level2!=None and level3!=None:
+                if self._wantedStateOfProperty.get(level2, None)==None: 
+                    self._wantedStateOfProperty[level1][level2]={}
                 self._wantedStateOfProperty[level1][level2][level3]=value
             elif level2!=None:
                 self._wantedStateOfProperty[level1][level2]=value

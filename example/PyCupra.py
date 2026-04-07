@@ -403,11 +403,11 @@ async def demo_set_charge_limit(vehicle, limit=30):
         print("   Request failed.")
     return success
 
-async def demo_set_climatisation(vehicle, action="start", temp=18.0):
+async def demo_set_climatisation(vehicle, action="start", temp=18.0, spin=None):
     print('########################################')
     print('#      Start/Stop climatisation        #')
     print('########################################')
-    success= await vehicle.set_climatisation(action, temp)            # mode = "start", "auxiliary_start", "electric", "auxiliary_stop" or "off". temp is optional, spin is S-PIN and only needed for aux heating
+    success= await vehicle.set_climatisation(action, temp, spin=spin)            # mode = "start", "auxiliary_start", "electric", "auxiliary_stop" or "off". temp is optional, spin is S-PIN and only needed for aux heating
     if success:
         print("   Request completed successfully.")
     else:
@@ -739,14 +739,15 @@ async def main():
             #await demo_set_battery_care(vehicle, value=True)                           # value = False or True
 
             #await demo_set_climatisation(vehicle, action = "start", temp=18.0)        # action = "electric", "start", "auxiliary_start",  or "off". spin is S-PIN and only needed for aux heating
+            #await demo_set_climatisation(vehicle, action = "auxiliary_start", temp=18.0, spin = credentials.get('spin',None))        # action = "electric", "start", "auxiliary_start",  or "off". spin is S-PIN and only needed for aux heating
             #await demo_set_windowheating(vehicle, action = "stop")                    # action = "start" or "stop"
             #await demo_set_climatisation_one_setting(vehicle, 
             #    settingName = 'targetTemperatureInCelsius', value = 18.0)              # set climatisation temperature 
             #await demo_set_climatisation_one_setting(vehicle, 'zoneFrontRightEnabled', True) # enable/disable zone front right in climatisation settings 
             #await demo_set_climatisation_one_setting(vehicle, 'climatisationWithoutExternalPower', False) # enable/disable climatisation without external power 
 
-            #await demo_set_auxiliary_heating_timer_active(vehicle, id=1, action="off", spin='1234')      # id = 1, 2, action = "on" or "off".
-            #await demo_set_auxiliary_heating_timer_schedule(vehicle, spin='1234')                       # arguments id and schedule can be found in the demo function
+            #await demo_set_auxiliary_heating_timer_active(vehicle, id=1, action="off", spin = credentials.get('spin',None))      # id = 1, 2, action = "on" or "off".
+            #await demo_set_auxiliary_heating_timer_schedule(vehicle, spin = credentials.get('spin',None))                       # arguments id and schedule can be found in the demo function
 
             #await demo_set_climatisation_timer_active(vehicle, id=1, action="off")      # id = 1, 2, action = "on" or "off".
             #await demo_set_climatisation_timer_schedule(vehicle)                       # arguments id and schedule can be found in the demo function
@@ -760,9 +761,9 @@ async def main():
             #await demo_set_departure_profile_active(vehicle, id=3, action="off")                 # id = 1, 2, 3, action = "on" or "off".
 
             #await demo_set_lock(vehicle,action = "lock", 
-            #                    spin = credentials.get('spin',''))                    # action = "unlock" or "lock". spin = SPIN, needed for both
+            #                    spin = credentials.get('spin',None))                    # action = "unlock" or "lock". spin = SPIN, needed for both
 
-            #await vehicle.set_pheater(mode = "heating", spin = "1234")                # action = "heating", "ventilation" or "off". spin = SPIN, not needed for off
+            #await vehicle.set_pheater(mode = "heating", spin = credentials.get('spin',None))                # action = "heating", "ventilation" or "off". spin = SPIN, not needed for off
 
             #await demo_set_honkandflash(vehicle, action="flash")                      # action = "honkandflash" or "flash"
 
