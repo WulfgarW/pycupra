@@ -11,7 +11,7 @@ from aiohttp import ClientSession
 from datetime import datetime
 
 currentframe = inspect.currentframe()
-if currentframe != None:
+if currentframe is not None:
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(currentframe)))
     parentdir = os.path.dirname(currentdir)
     sys.path.insert(0, parentdir)
@@ -499,10 +499,10 @@ async def demo_send_destination(vehicle):
 async def main():
     """Main method."""
     credentials= readCredentialsFile()
-    if credentials==None or credentials.get('username','')=='' or (credentials.get('password','')==''):
+    if credentials is None or credentials.get('username','') == '' or (credentials.get('password','') == ''):
         _LOGGER.warning('Can not use the credentials read from the credentials file.')
         raise
-    if credentials.get('brand','')!='':
+    if credentials.get('brand','') != '':
         BRAND = credentials.get('brand','')
         print('Read brand from the credentials file.')
     else:
@@ -532,11 +532,11 @@ async def main():
             await connection.get_vehicles()
 
             eudaRunning = False
-            eudaSession= ClientSession(headers={'Connection': 'keep-alive'})
-            print('')
-            print(f"Initiating new session to EU Data Act portal with {credentials.get('username')} as username")
-            eudaConnection = EUDAConnection(eudaSession, BRAND, credentials.get('username'), credentials.get('password'), PRINTRESPONSE, anonymise=False, logPrefix='')
             if credentials.get('useEudaFiles',False):
+                eudaSession= ClientSession(headers={'Connection': 'keep-alive'})
+                print('')
+                print(f"Initiating new session to EU Data Act portal with {credentials.get('username')} as username")
+                eudaConnection = EUDAConnection(eudaSession, BRAND, credentials.get('username'), credentials.get('password'), PRINTRESPONSE, anonymise=False, logPrefix='')
                 print("Attempting to login")
                 print(datetime.now())
                 eudaRunning = await eudaConnection.doLogin()
@@ -564,7 +564,7 @@ async def main():
                 eudaVehicle = None
                 if eudaRunning:
                     eudaVehicle= eudaConnection.vehicle(vehicle.vin)
-                    if eudaVehicle==None:
+                    if eudaVehicle is None:
                         _LOGGER.debug(f'Vehicle {vehicle.vin} is not a valid vehicle for the EUDA portal.')
                     _LOGGER.debug(f'Vehicle brand={vehicle.brand} model={vehicle.model}.')
                     _LOGGER.debug(f'Vehicle brand={eudaVehicle.brand} model={eudaVehicle.model}.')
@@ -587,7 +587,7 @@ async def main():
                 print('########################################')
                 print('#         Setting up dashboard         #')
                 print(txt.center(40, '#'))
-                if eudaVehicle== None:
+                if eudaVehicle is None:
                     dashboard = vehicle.dashboard(mutable=True)
                 else:
                     dashboard = vehicle.dashboard(mutable=True, eudaVehicle=eudaVehicle)
@@ -625,7 +625,7 @@ async def main():
                             pass
                 if eudaRunning:
                     eudaVehicle= eudaConnection.vehicle(vehicle.vin)
-                    if eudaVehicle==None:
+                    if eudaVehicle is None:
                         _LOGGER.debug(f'Vehicle {vehicle.vin} is not a valid vehicle for the EUDA portal.')
                     else:
                         print(f"\tEUDAVehicle attributes, and methods:")
@@ -785,7 +785,7 @@ async def main():
             else:
                 print('Export of all attributes failed')
 
-            if vehicle.firebaseStatus== 1: # firebase messaging activated
+            if vehicle.firebaseStatus == 1: # firebase messaging activated
                 # Do an endless loop to wait and receive firebase messages    
                 i=0
                 while True:

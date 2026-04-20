@@ -456,7 +456,7 @@ class FcmRegister:
                 return self.credentials
 
         self.credentials = await self.register()
-        if True: #self.credentials_updated_callback != None:
+        if True: #self.credentials_updated_callback is not None:
             await self.credentials_updated_callback(self.credentials, fcmCredentialsFileName)
 
         return self.credentials

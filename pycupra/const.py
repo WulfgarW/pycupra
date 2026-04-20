@@ -22,10 +22,12 @@ CLIENT_LIST = {
 
 
 XCLIENT_ID = '3c756d46-f1ba-4d78-9f9a-cff0d5292d51@apps_vw-dilab.com' 
-XAPPVERSION = '2.10.0'
-XAPPNAME = 'com.cupra.mycupra'
-USER_AGENT_CUPRA = 'OLACupra/2.10.0 (Android 12; sdk_gphone64_x86_64; Google) Mobile' 
-USER_AGENT_SEAT = 'OLASeat/2.10.1 (Android 12; sdk_gphone64_x86_64; Google) Mobile'
+XAPPVERSION_CUPRA = '2.15.0'
+XAPPVERSION_SEAT = '2.13.3'
+XAPPNAME_CUPRA = 'com.cupra.mycupra'
+XAPPNAME_SEAT = 'com.seat.myseat'
+USER_AGENT_CUPRA = 'OLACupra/2.15.0 (Android 12; sdk_gphone64_x86_64; Google) Mobile' 
+USER_AGENT_SEAT = 'OLASeat/2.13.3 (Android 12; sdk_gphone64_x86_64; Google) Mobile'
 APP_URI = 'https://ola.prod.code.seat.cloud.vwgroup.com'
 
 HEADERS_SESSION = {
@@ -37,6 +39,9 @@ HEADERS_SESSION = {
     #'X-Client-Id': XCLIENT_ID,
     #'X-App-Version': XAPPVERSION,
     #'X-App-Name': XAPPNAME,
+    'app-version': XAPPVERSION_SEAT,
+    'app-brand': 'seat',
+    'origin': 'app',
     'User-Agent': USER_AGENT_SEAT,
     #'User-ID': '?????', # to be set later
     'Accept-Language': 'en_GB',
@@ -48,6 +53,9 @@ HEADERS_SESSION = {
     'Accept': 'application/json',
     #'X-Client-Id': XCLIENT_ID,
     #'X-App-Name': XAPPNAME,
+    'app-version': XAPPVERSION_CUPRA,
+    'app-brand': 'cupra',
+    'origin': 'app',
     'User-Agent': USER_AGENT_CUPRA,
     #'User-ID': '?????', # to be set later,
     #'Accept-Encoding': 'gzip', # to be deleted later!!!
@@ -60,7 +68,7 @@ HEADERS_AUTH = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': USER_AGENT_SEAT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'x-requested-with': XAPPNAME,
+        'x-requested-with': XAPPNAME_SEAT,
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
         #'X-App-Name': XAPPNAME
@@ -69,7 +77,7 @@ HEADERS_AUTH = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': USER_AGENT_CUPRA,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'x-requested-with': XAPPNAME,
+        'x-requested-with': XAPPNAME_CUPRA,
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
         #'X-App-Name': XAPPNAME
@@ -88,7 +96,7 @@ TOKEN_HEADERS = {
         'Connection': 'keep-alive',
         'Accept-Encoding': 'gzip',
         'User-Agent': USER_AGENT_SEAT,
-        'app-version': '2.10.0',
+        'app-version': XAPPVERSION_SEAT,
         'app-brand': 'seat',
         'app-market': 'android',
         #'User-ID': '?????', # to be set later
@@ -105,7 +113,7 @@ TOKEN_HEADERS = {
         'Connection': 'keep-alive',
         'Accept-Encoding': 'gzip',
         'User-Agent': USER_AGENT_CUPRA,
-        'app-version': '2.10.0',
+        'app-version': XAPPVERSION_CUPRA,
         'app-brand': 'cupra',
         'app-market': 'android',
         #'User-ID': '?????', # to be set later

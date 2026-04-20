@@ -75,7 +75,7 @@ class EUDAConnection:
     def __init__(self, session: ClientSession, brand: str ='cupra', username: str ='', password: str ='', fulldebug: bool =False, anonymise: bool =True, logPrefix=None, hass=None, **optional):
         """ Initialize """
         self._logPrefix = logPrefix
-        if self._logPrefix!= None:
+        if self._logPrefix is not None:
             self._LOGGER= logging.getLogger(__name__+"_"+self._logPrefix)
         else:
             self._LOGGER = _LOGGER
@@ -106,7 +106,7 @@ class EUDAConnection:
         self.addToAnonymisationKeys('vin')
         self._error401 = False
         self._error403 = False
-        self._loginError = None
+        self._loginError: str| None = None
         # for file processing and information extraction
         self.rawData: dict = {}
         self.currentData: dict = {}
@@ -502,7 +502,7 @@ class EUDAConnection:
             headers=self._session_headers,
             cookies=self._session_cookies,
         )
-        if response.status !=200:
+        if response.status != 200:
             self._LOGGER.error(f'Request for "{url}" returned with status code [{response.status}], response: {response}')
             raise PyCupraException(f'http.get for logout failed. Response status: {response.status}')
         self._LOGGER.info(f'Sent logout call to API. Response status = {response.status}')
@@ -525,7 +525,7 @@ class EUDAConnection:
             }
             if error.status == 401:
                 self._LOGGER.warning('Received "Unauthorized" while fetching data. This can occur if login expired.')
-                if True: #self._error401 != True:
+                if True: #not self._error401:
                     self._error401 = True
                     try:
                         rc=await self._authorize(self._session_auth_brand)
@@ -613,9 +613,9 @@ class EUDAConnection:
             try:
                 if response.status == 204:
                     res = {'status_code': response.status}
-                elif response.status == 202 and method==METH_PUT:
+                elif response.status == 202 and method == METH_PUT:
                     res = response
-                elif response.status == 200 and method==METH_DELETE:
+                elif response.status == 200 and method == METH_DELETE:
                     res = response
                 elif 200 <= response.status <= 299:
                     # If this is a revoke token url, expect Content-Length 0 and return
@@ -701,11 +701,11 @@ class EUDAConnection:
                 headers=self._session_headers,
                 cookies=self._session_cookies,
             )
-            if response.status !=200:
+            if response.status != 200:
                 self._LOGGER.error(f'Request for "{url}" returned with status code [{response.status}], response: {response}')
                 raise PyCupraException(f'http.get for permission check failed. Response status: {response.status}')
 
-            if vin!='':
+            if vin != '':
                 response = await self.get(EUDA_URL_DETAILS.format(baseurl=baseurl, vin =vin))
             return True
         except Exception as error:
@@ -717,7 +717,7 @@ class EUDAConnection:
         """Get the vehicles for the account that is logged in."""
         data={}
         try:
-            #if await self.checkPermission(baseurl)==False:
+            #if not await self.checkPermission(baseurl):
             #    raise 'Permission check failed'
             response = await self.get(EUDA_API_VEHICLES.format(baseurl=EUDA_BASE_URL, viewPos ='FRONT_LEFT'))
             if len(response)>0:
@@ -739,7 +739,7 @@ class EUDAConnection:
                 for vehicle in data['vehicles']:
                     self._LOGGER.debug(self.anonymise(f'Checking vehicle {vehicle}'))
                     # Only vehicles with role='PRIMARY_USER' and enrollmentStatus='COMPLETED' are valid
-                    if vehicle.get('role','')=='PRIMARY_USER' and vehicle.get('enrollmentStatus','')=='COMPLETED':
+                    if vehicle.get('role','') == 'PRIMARY_USER' and vehicle.get('enrollmentStatus','') == 'COMPLETED':
                         vin: str = vehicle.get('vin', '')
                         self.addToAnonymisationDict(vin,'[VIN_ANONYMISED]')
                         nickName = vehicle.get('nickName', 'unknown') 
@@ -773,10 +773,10 @@ class EUDAConnection:
         """Get information for a data cluster."""
         data={}
         try:
-            if await self.checkPermission(baseurl, vin)==False:
+            if not await self.checkPermission(baseurl, vin):
                 raise PyCupraEUDAPermissionExpiredException('Permission check failed')
             response = await self.get(EUDA_API_DATACLUSTERS.format(baseurl=baseurl, vin=vin, type=type))
-            if response.get('Name', '')!='':
+            if response.get('Name', '') != '':
                 data[type] = response
             elif response.get('status_code', {}) == 404 and type == 'partial':
                 self._LOGGER.error(f'Could not find a customised data request for your account, HTTP status code: {response.get("status_code")}. Did you forget to create one?')
@@ -805,7 +805,7 @@ class EUDAConnection:
                 self._LOGGER.info('Unhandled error while trying to fetch list of available data files')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch list of available data files, error: {error}')
-            if self._session_headers.get('type', None) != None:
+            if self._session_headers.get('type', None) is not None:
                 self._session_headers.pop('type')
             raise PyCupraInvalidRequestException("Unable to fetch list of available data files")
         return data
@@ -824,9 +824,9 @@ class EUDAConnection:
             return fileContent
         except:
             self._LOGGER.debug('Could not fetch data file.')
-            if self._session_headers.get('type', None) != None:
+            if self._session_headers.get('type', None) is not None:
                 self._session_headers.pop('type')
-            if self._session_headers.get('filename', None) != None:
+            if self._session_headers.get('filename', None) is not None:
                 self._session_headers.pop('filename')
             raise PyCupraInvalidRequestException("Unable to download data file")
         return bytes(0)
@@ -918,7 +918,7 @@ class EUDAConnection:
             await loop.run_in_executor(None, self.writeTripStatisticsFile)
 
             # Check, if self.rawData is empty
-            if self.rawData=={}:
+            if self.rawData == {}:
                 # Call extractInformationFromFile for the latest file from the processed folder, so that self.rawData has one entry
                 newestTimestamp = GetTimeStampFromFileName('Dummy_20000101000000.json')
                 newestEntry = None
@@ -929,7 +929,7 @@ class EUDAConnection:
                         if GetTimeStampFromFileName(entry.name) > newestTimestamp:
                             newestTimestamp = GetTimeStampFromFileName(entry.name)
                             newestEntry = entry
-                if newestEntry != None:
+                if newestEntry is not None:
                     await self.extractInformationFromFile(newestEntry)
                     self._LOGGER.debug(self.anonymise(f"Extracted information from {newestEntry.name} to initialise rawData dict."))
 
@@ -1029,11 +1029,11 @@ class EUDAConnection:
             #self._LOGGER.debug('Copying data from single file to raw data dict.')
             vin = GetVINFromFileName(fileName)
             timeStamp = GetTimeStampFromFileName(fileName)
-            if self.rawData.get(vin, None)==None:
+            if self.rawData.get(vin, None) is None:
                 self.rawData[vin]={}
-            if self.currentData.get(vin, None)==None:
+            if self.currentData.get(vin, None) is None:
                 self.currentData[vin]={}
-            if self.rawData.get(vin, {}).get(timeStamp, None)==None:
+            if self.rawData.get(vin, {}).get(timeStamp, None) is None:
                 self.rawData[vin][timeStamp]=dataFromFile
                 if self.currentData.get(vin, {}).get('timeStamp', GetTimeStampFromFileName('Dummy_20000101000000.json')) <= timeStamp:
                     # Time stamp of current file is equal or later than time stamp of self.currentData
@@ -1063,7 +1063,7 @@ class EUDAConnection:
                             tripElement['travelTime']= int(element.get('value','0'))
                             timeStampString = element.get('timestampUtc','')
                             try:
-                                if timeStampString!='':
+                                if timeStampString != '':
                                     tripElement['tripEnd']=datetime.strptime(timeStampString,"%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc).astimezone(None)
                                 else:
                                     tripElement['tripEnd']=timeStamp
@@ -1126,7 +1126,7 @@ class EUDAConnection:
                             data['distance']=int(row.get('distance','0'))
                             tripEndString = row.get('tripEnd','2000-01-01 00:00:00+01:00')
                             data['tripEnd']=datetime.strptime(tripEndString,"%Y-%m-%d %H:%M:%S%z").astimezone(None)
-                            if self.tripData.get(vehicle.vin,None)==None:
+                            if self.tripData.get(vehicle.vin,None) is None:
                                 self.tripData[vehicle.vin]={}
                             self.tripData[vehicle.vin][int(row.get('startMileage','0'))] = data
                         csvfile.close()
@@ -1156,7 +1156,7 @@ class EUDAConnection:
                     vehicleTrips = self.tripData.get(vehicle.vin,{})
                     for tripStartMileage in vehicleTrips:
                         trip = self.tripData.get(vehicle.vin,{}).get(tripStartMileage,{})
-                        if trip=={}:
+                        if trip == {}:
                             self._LOGGER.warning(f'Did not find trip for start mileage {tripStartMileage}')
                             return False
                         writer.writerow({
@@ -1224,15 +1224,15 @@ class EUDAConnection:
             self._LOGGER.debug(f'response={res}')
             self._session_headers.pop('traceId')"""
 
-            if identifier_partial=='':
+            if identifier_partial == '':
                 self._LOGGER.warning(f"Cannot get list of available files of data cluster partial.")
                 return False
 
             fileList = await self.getListOfAvailableFiles(EUDA_BASE_URL, vehicle.vin, identifier_partial, 'partial')
-            if fileList.get('availableDataFiles',[])!=[]:
+            if fileList.get('availableDataFiles',[]) != []:
                 for element in fileList.get('availableDataFiles',[]):
                     fileName = element.get('name',"")
-                    if fileName!="":
+                    if fileName != "":
                         fileWithPath = os.path.join(self._dataFolder, fileName)
                         processedFileWithPath = os.path.join(self._dataFolderProcessed, fileName)
                         if os.path.isfile(fileWithPath):

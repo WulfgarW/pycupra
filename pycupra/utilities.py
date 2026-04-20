@@ -22,7 +22,7 @@ def obj_parser(obj):
         try:
             obj[key]  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
             #dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
-            #if dtVal.tzinfo == None:
+            #if dtVal.tzinfo is None:
             #    dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S")
             #obj[key] = dtVal
         except (TypeError, ValueError):
@@ -116,7 +116,7 @@ def convertTimerUtcToLocal(timer):
     if isinstance(timer, dict):
         newValue = {}
         for key, value in timer.items():
-            if key =='startTime':
+            if key == 'startTime':
                 n = datetime.strptime("2025-01-01"+'T'+value+":00", '%Y-%m-%dT%H:%M:%S').replace(tzinfo=timezone.utc)
                 newValue[key] = n.astimezone(None).strftime("%H:%M")
             else:

@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 class Firebase():
     def __init__(self, logPrefix=None):
         self._pushClient = None
-        if logPrefix!= None:
+        if logPrefix is not None:
             self._LOGGER= logging.getLogger(__name__+"_"+logPrefix)
         else:
             self._LOGGER = _LOGGER

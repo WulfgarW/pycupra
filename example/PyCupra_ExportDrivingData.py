@@ -55,10 +55,10 @@ async def main():
     print('#               Reading credentials file             #')
     print('######################################################')
     credentials= readCredentialsFile()
-    if credentials==None or credentials.get('username','')=='' or (credentials.get('password','')==''):
+    if credentials is None or credentials.get('username','') == '' or (credentials.get('password','') == ''):
         _LOGGER.warning('Can not use the credentials read from the credentials file.')
         raise
-    if credentials.get('brand','')!='':
+    if credentials.get('brand','') != '':
         BRAND = credentials.get('brand','')
         print('Read brand from the credentials file.')
     else:

@@ -37,7 +37,7 @@ DATEZERO = datetime(1970,1,1)
 class Vehicle:
     def __init__(self, conn, data):
         self._logPrefix = data.get('logPrefix', None)
-        if self._logPrefix!= None:
+        if self._logPrefix is not None:
             self._LOGGER= logging.getLogger(__name__+"_"+self._logPrefix)
         else:
             self._LOGGER = _LOGGER
@@ -120,7 +120,7 @@ class Vehicle:
     async def discover(self) -> None:
         """Discover vehicle and initial data."""
         # Extract information of relevant capabilities
-        if self._capabilities != None:
+        if self._capabilities is not None:
             for capa in self._capabilities:
                 id=capa.get('id', '')
                 if self._relevantCapabilties.get(id, False):
@@ -133,21 +133,21 @@ class Vehicle:
                     if capa.get('status', False):
                         data['reason']=capa.get('status', '')
                     if capa.get('parameters', False):
-                        if capa['parameters'].get('supportsCyclicTrips',False)==True or capa['parameters'].get('supportsCyclicTrips',False)=='true':
+                        if capa['parameters'].get('supportsCyclicTrips',False) or capa['parameters'].get('supportsCyclicTrips',False) == 'true':
                             data['supportsCyclicTrips']=True
-                        if capa['parameters'].get('supportsTargetStateOfCharge',False)==True or capa['parameters'].get('supportsTargetStateOfCharge',False)=='true':
+                        if capa['parameters'].get('supportsTargetStateOfCharge',False) or capa['parameters'].get('supportsTargetStateOfCharge',False) == 'true':
                             data['supportsTargetStateOfCharge']=True
-                        if capa['parameters'].get('supportsSingleTimer',False)==True or capa['parameters'].get('supportsSingleTimer',False)=='true':
+                        if capa['parameters'].get('supportsSingleTimer',False) or capa['parameters'].get('supportsSingleTimer',False) == 'true':
                             data['supportsSingleTimer']=True
-                        if capa['parameters'].get('supportsVehiclePositionedInProfileID',False)==True or capa['parameters'].get('supportsVehiclePositionedInProfileID',False)=='true':
+                        if capa['parameters'].get('supportsVehiclePositionedInProfileID',False) or capa['parameters'].get('supportsVehiclePositionedInProfileID',False) == 'true':
                             data['supportsVehiclePositionedInProfileID']=True
-                        if capa['parameters'].get('supportsTimerClimatisation',False)==True or capa['parameters'].get('supportsTimerClimatisation',False)=='true':
+                        if capa['parameters'].get('supportsTimerClimatisation',False) or capa['parameters'].get('supportsTimerClimatisation',False) == 'true':
                             data['supportsTimerClimatisation']=True
-                        if capa['parameters'].get('supportsOffGridClimatisation',False)==True or capa['parameters'].get('supportsOffGridClimatisation',False)=='true':
+                        if capa['parameters'].get('supportsOffGridClimatisation',False) or capa['parameters'].get('supportsOffGridClimatisation',False) == 'true':
                             data['supportsOffGridClimatisation']=True
-                        if capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False)==True or capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False)=='true':
+                        if capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False) or capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False) == 'true':
                             data['supportsStartParallelClimatisationWindowHeating']=True
-                        if capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False)==True or capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False)=='true':
+                        if capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False) or capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False) == 'true':
                             data['supportsTargetTemperatureInStartAuxiliaryHeating']=True
                     self._relevantCapabilties[id].update(data)
         else:
@@ -174,9 +174,9 @@ class Vehicle:
     async def update(self, updateType=0) -> bool:
         """Try to fetch data for all known API endpoints."""
         # Check time stamp of last capability query and reread capabilities and connection if older than 29 minutes or if vehicle deactivated
-        if self._properties == None:
+        if self._properties is None:
             self._properties = {}
-        if self._properties.get('capabilitiesQueriedOn','')=='':
+        if self._properties.get('capabilitiesQueriedOn','') == '':
             self._properties['capabilitiesQueriedOn'] = '2000-01-01T00:00:00Z'
         lastQueriedOn = datetime.strptime(self._properties.get('capabilitiesQueriedOn')[:19]+'Z', '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc).astimezone(tz=None)
         if lastQueriedOn < (datetime.now(tz=None) - timedelta(minutes= 29)).astimezone(tz=None) or self.deactivated:
@@ -207,7 +207,7 @@ class Vehicle:
         # Fetch all data if car is not deactivated
         if not self.deactivated:
             try:
-                if self.attrs.get('areaAlarm', {}) !={}:
+                if self.attrs.get('areaAlarm', {}) != {}:
                     # Delete an area alarm if it is older than 900 seconds
                     alarmTimestamp = self.attrs.get('areaAlarm', {}).get('timestamp', 0)
                     if alarmTimestamp < datetime.now(tz=None) - timedelta(seconds= 900):
@@ -269,7 +269,7 @@ class Vehicle:
 
                 if hasattr(self, '_last_full_update'):
                     self._LOGGER.debug(f'last_full_update= {self._last_full_update}, fullUpdateExpired= {fullUpdateExpired}.')
-                if updateType!=1 and (hasattr(self, '_last_full_update') and self._last_full_update>fullUpdateExpired):
+                if updateType != 1 and (hasattr(self, '_last_full_update') and self._last_full_update>fullUpdateExpired):
                     self._LOGGER.debug(f'Just performed small update for vehicle with VIN {self._connection.anonymise(self.vin)}.')
                     return True
                 
@@ -484,9 +484,9 @@ class Vehicle:
                     # VW-Group API charger current request
                     if self._relevantCapabilties.get('charging', {}).get('active', False):
                         data = {'maxChargeCurrentAc': int(value)}
-                        if int(value)==252:
+                        if int(value) == 252:
                             data = {'maxChargeCurrentAc': 'reduced'}
-                        elif int(value)==254:
+                        elif int(value) == 254:
                             data = {'maxChargeCurrentAc': 'maximum'}
                         else:
                             data = {'maxChargeCurrentAcInAmperes': int(value)}
@@ -509,7 +509,7 @@ class Vehicle:
             if data.get('maxChargeCurrentAc',None):
                 # set the new wanted state of the property slow_charge to be changed by the request
                 newValue = False
-                if data.get('maxChargeCurrentAc',None)=='reduced':
+                if data.get('maxChargeCurrentAc',None) == 'reduced':
                     newValue= True
                 if self.checkForRunningRequests('batterycharge'):
                     raise PyCupraRequestInProgressException('Charging action already in progress')
@@ -527,12 +527,12 @@ class Vehicle:
                     # VW-Group API charger current request
                     if self._relevantCapabilties.get('charging', {}).get('active', False) and self._relevantCapabilties.get('charging', {}).get('supportsTargetStateOfCharge', False):
                         data= deepcopy(self.attrs.get('charging',{}).get('info',{}).get('settings',{}))
-                        if data=={}:
+                        if data == {}:
                             self._LOGGER.error(f'Can not set target soc, because currently no charging settings are present.')
                             raise PyCupraInvalidRequestException(f'Set target soc not possible. Charging settings not present.')
                         data['targetSoc'] = int(value)
                         action = 'settings'
-                        if self._properties.get('platform','')=='MOD4': # I assume, that for platform=MOD4 the call is different
+                        if self._properties.get('platform','') == 'MOD4': # I assume, that for platform=MOD4 the call is different
                             data={}
                             data['targetSocPercentage'] = int(value)
                             action = 'update-settings'
@@ -590,9 +590,9 @@ class Vehicle:
             elif action in ['stop', 'Stop', 'Off', 'off']:
                 mode='stop'
                 self.setWantedStateOfProperty('batterycharge', 'charging', value=False)
-            elif action=='settings':
+            elif action == 'settings':
                 mode=action
-            elif action=='update-settings' or action=='update-battery-care':
+            elif action == 'update-settings' or action == 'update-battery-care':
                 mode=action
             else:
                 self._LOGGER.error(f'Invalid charger action: {action}. Must be either start, stop or setSettings')
@@ -629,17 +629,17 @@ class Vehicle:
                         if not self.charging:
                             actionSuccessful = True
                     elif mode == 'settings':
-                        if data.get('targetSoc',0) ==  self.target_soc: # In case targetSoc is changed
+                        if data.get('targetSoc',0) == self.target_soc: # In case targetSoc is changed
                             actionSuccessful = True
-                        if data.get('maxChargeCurrentAc','') ==  self.charge_max_ampere: # In case 'maximum', 'reduced'
+                        if data.get('maxChargeCurrentAc','') == self.charge_max_ampere: # In case 'maximum', 'reduced'
                             actionSuccessful = True
-                        if data.get('maxChargeCurrentAcInAmperes',0) ==  self.charge_max_ampere: # In case of a numerical value for charge current
+                        if data.get('maxChargeCurrentAcInAmperes',0) == self.charge_max_ampere: # In case of a numerical value for charge current
                             actionSuccessful = True
                     elif mode == 'update-settings':
-                        if data.get('targetSocPercentage',0) ==  self.target_soc: # In case targetSoc is changed
+                        if data.get('targetSocPercentage',0) == self.target_soc: # In case targetSoc is changed
                             actionSuccessful = True
                     elif mode == 'update-battery-care':
-                        if data.get('enabled','') ==  self.charging_battery_care: # In case charging_battery_care is changed
+                        if data.get('enabled','') == self.charging_battery_care: # In case charging_battery_care is changed
                             actionSuccessful = True
                     else:
                         self._LOGGER.error(f'Missing code in vehicle._set_charger() for mode {mode}')
@@ -702,9 +702,9 @@ class Vehicle:
         if self._relevantCapabilties.get('departureTimers', {}).get('active', False):
             allTimers= self.attrs.get('departureTimers').get('timers', [])
             for singleTimer in allTimers:
-                if singleTimer.get('id',-1)==id:
+                if singleTimer.get('id',-1) == id:
                     if action in ['on', 'off']:
-                        if action=='on':
+                        if action == 'on':
                             enabled=True
                         else:
                             enabled=False
@@ -880,7 +880,7 @@ class Vehicle:
                     await asyncio.sleep(15)
                     await self.get_departure_timers()
                     if data.get('minSocPercentage',False):
-                        if data.get('minSocPercentage',-2)==self.attrs.get('departureTimers',{}).get('minSocPercentage',-1):
+                        if data.get('minSocPercentage',-2) == self.attrs.get('departureTimers',{}).get('minSocPercentage',-1):
                             actionSuccessful=True
                     else:
                         self._LOGGER.debug('Checking if new departure timer is as expected:')
@@ -891,12 +891,12 @@ class Vehicle:
                         if timerDataId:
                             newTimers = datetime2string(self.attrs.get('departureTimers',{}).get('timers',[]))
                             for newTimer in newTimers:
-                                if newTimer.get('id',-1)==timerDataId:
+                                if newTimer.get('id',-1) == timerDataId:
                                     self._LOGGER.debug(f'Value of timer sent:{timerData}')
                                     self._LOGGER.debug(f'Value of timer read:{newTimer}')
-                                    if timerData==newTimer: 
+                                    if timerData == newTimer: 
                                         actionSuccessful=True
-                                    elif timerDataCopy==newTimer: 
+                                    elif timerDataCopy == newTimer: 
                                         self._LOGGER.debug('Data written and data read are the same, but the timer is activated.')
                                         actionSuccessful=True
                                     break
@@ -1000,7 +1000,7 @@ class Vehicle:
                 raise PyCupraInvalidRequestException(f'No timers found in departure profile: {data}.')
             idFound=False
             for e in range(len(data.get('timers', []))):
-                if data['timers'][e].get('id',-1)==id:
+                if data['timers'][e].get('id',-1) == id:
                     data['timers'][e] = newDepProfileSchedule
                     idFound=True
             if idFound:
@@ -1022,9 +1022,9 @@ class Vehicle:
                 raise PyCupraInvalidRequestException(f'No timers found in departure profile: {data}.')
             idFound=False
             for e in range(len(data.get('timers', []))):
-                if data['timers'][e].get('id',-1)==id:
+                if data['timers'][e].get('id',-1) == id:
                     if action in ['on', 'off']:
-                        if action=='on':
+                        if action == 'on':
                             enabled=True
                         else:
                             enabled=False
@@ -1071,11 +1071,11 @@ class Vehicle:
                 while not actionSuccessful and retry < 2:
                     await asyncio.sleep(15)
                     await self.get_departure_profiles()
-                    if action=='minSocPercentage':
+                    if action == 'minSocPercentage':
                         self._LOGGER.debug('Checking if new minSocPercentage is as expected:')
                         self._LOGGER.debug(f'Value of minSocPercentage sent:{data.get('minSocPercentage',-2)}')
                         self._LOGGER.debug(f'Value of minSocPercentage read:{self.attrs.get('departureTimers',{}).get('minSocPercentage',-1)}')
-                        if data.get('minSocPercentage',-2)==self.attrs.get('departureTimers',{}).get('minSocPercentage',-1):
+                        if data.get('minSocPercentage',-2) == self.attrs.get('departureTimers',{}).get('minSocPercentage',-1):
                             actionSuccessful=True
                     else:
                         sendData = data.get('timers',[])
@@ -1083,7 +1083,7 @@ class Vehicle:
                         self._LOGGER.debug('Checking if new departure profiles are as expected:')
                         self._LOGGER.debug(f'Value of data sent:{sendData}')
                         self._LOGGER.debug(f'Value of data read:{newData}')
-                        if sendData==newData:
+                        if sendData == newData:
                             actionSuccessful=True
                     retry = retry +1
                 if actionSuccessful:
@@ -1103,7 +1103,7 @@ class Vehicle:
     async def send_destination(self, destination=None) -> bool:
         """ Send destination to vehicle. """
 
-        if destination==None:
+        if destination is None:
             self._LOGGER.error('No destination provided')
             raise
         else:
@@ -1141,52 +1141,52 @@ class Vehicle:
         """Set one attribute in the climatisation settings to a new value."""
         data = deepcopy(self.attrs.get('climater', {}).get('settings',{}))
         if settingName in data:
-            if value!='':
-                if settingName=='targetTemperatureInCelsius':
+            if value != '':
+                if settingName == 'targetTemperatureInCelsius':
                     if float(value) < 16.0 or float(value) > 30.0:
                         self._LOGGER.error(f'The value {value} is not a valid temperature in °C for climatisation.')
                         raise PyCupraInvalidRequestException(f'Setting temperature to {value} °C is not supported.')
-                if settingName=='targetTemperatureInFahrenheit':
+                if settingName == 'targetTemperatureInFahrenheit':
                     if float(value) < 61.0 or float(value) > 86.0:
                         self._LOGGER.error(f'The value {value} is not a valid temperature in F for climatisation.')
                         raise PyCupraInvalidRequestException(f'Setting temperature to {value} F is not supported.')
                 data[settingName]= value
-                if settingName=='targetTemperatureInFahrenheit':
+                if settingName == 'targetTemperatureInFahrenheit':
                     data['unitInCar'] = 'fahrenheit'
-                if settingName=='targetTemperatureInCelsius':
+                if settingName == 'targetTemperatureInCelsius':
                     data['unitInCar'] = 'celsius'
 
                 mode = 'settings'
-                if data.get('unitInCar','')=='fahrenheit':
-                    data['targetTemperatureUnit']= 'fahrenheit'
+                if data.get('unitInCar','') == 'fahrenheit':
+                    data['targetTemperatureUnit'] = 'fahrenheit'
                     data['targetTemperature'] = data.get('targetTemperatureInFahrenheit',72.0)
                 else:
                     data['targetTemperatureUnit']= 'celsius'
                     data['targetTemperature'] = data.get('targetTemperatureInCelsius',20.0)
-                if data.get('carCapturedTimestamp','')!='':
+                if data.get('carCapturedTimestamp','') != '':
                     data.pop('carCapturedTimestamp')
-                if data.get('targetTemperatureInCelsius','')!='':
+                if data.get('targetTemperatureInCelsius','') != '':
                     data.pop('targetTemperatureInCelsius')
-                if data.get('targetTemperatureInFahrenheit','')!='':
+                if data.get('targetTemperatureInFahrenheit','') != '':
                     data.pop('targetTemperatureInFahrenheit')
-                if data.get('unitInCar','')!='':
+                if data.get('unitInCar','') != '':
                     data.pop('unitInCar')
             else:
                 self._LOGGER.error(f'Set climatisation setting "{settingName}" to "{value} "is not supported.')
                 raise PyCupraInvalidRequestException(f'Set climatisation setting "{settingName}" to "{value} "is not supported.')
             if not self.checkForRunningRequests('climatisation'):
                 # set the wanted state of the property affected by the request
-                if settingName=='climatisationWithoutExternalPower':
+                if settingName == 'climatisationWithoutExternalPower':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'climatisationWithoutExternalPower', value=value)
-                elif settingName=='zoneFrontLeftEnabled':
+                elif settingName == 'zoneFrontLeftEnabled':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'zoneFrontLeftEnabled', value=value)
-                elif settingName=='zoneFrontRightEnabled':
+                elif settingName == 'zoneFrontRightEnabled':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'zoneFrontRightEnabled', value=value)
-                elif settingName=='climatisationAtUnlock':
+                elif settingName == 'climatisationAtUnlock':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'climatisationAtUnlock', value=value)
-                elif settingName=='windowHeatingEnabled':
+                elif settingName == 'windowHeatingEnabled':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'windowHeatingEnabled', value=value)
-                elif settingName=='targetTemperatureInCelsius' or settingName=='targetTemperatureInFahrenheit':
+                elif settingName == 'targetTemperatureInCelsius' or settingName == 'targetTemperatureInFahrenheit':
                     self.setWantedStateOfProperty('climatisation', 'settings', 'climatisation_target_temperature', value=value)
 
             return await self._set_climater(mode, data)
@@ -1235,7 +1235,7 @@ class Vehicle:
                             data = {}
                     return await self._set_climater(modeLc, data, spin)
                 else:
-                    if modeLc=='auxiliary_stop' and (self._requests['climatisation'].get('id', False) or self.auxiliary_climatisation):
+                    if modeLc == 'auxiliary_stop' and (self._requests['climatisation'].get('id', False) or self.auxiliary_climatisation):
                         #request_id=self._requests.get('climatisation', 0)
                         data={}
                         return await self._set_climater(modeLc, data, spin)
@@ -1312,7 +1312,7 @@ class Vehicle:
                         if not self.auxiliary_climatisation:
                             actionSuccessful = True
                     elif mode == 'settings':
-                        if data.get('targetTemperature',0)== self.climatisation_target_temperature and data.get('climatisationWithoutExternalPower',False)== self.climatisation_without_external_power:
+                        if data.get('targetTemperature',0) == self.climatisation_target_temperature and data.get('climatisationWithoutExternalPower',False) == self.climatisation_without_external_power:
                             actionSuccessful = True
                     elif mode == 'windowHeater start':
                         if self.window_heater:
@@ -1356,9 +1356,9 @@ class Vehicle:
                 data.pop('timeInCar')
             idFound=False
             for e in range(len(data.get('timers', []))):
-                if data['timers'][e].get('id',-1)==id:
+                if data['timers'][e].get('id',-1) == id:
                     if action in ['on', 'off']:
-                        if action=='on':
+                        if action == 'on':
                             enabled=True
                         else:
                             enabled=False
@@ -1440,7 +1440,7 @@ class Vehicle:
                 data.pop('timeInCar')
             idFound=False
             for e in range(len(data.get('timers', []))):
-                if data['timers'][e].get('id',-1)==id:
+                if data['timers'][e].get('id',-1) == id:
                     data['timers'][e] = newSchedule
                     idFound=True
             if idFound:
@@ -1488,7 +1488,7 @@ class Vehicle:
                     self._LOGGER.debug('Checking if new climatisation timers are as expected:')
                     self._LOGGER.debug(f'Value of data sent:{sendData}')
                     self._LOGGER.debug(f'Value of data read:{newData}')
-                    if sendData==newData:
+                    if sendData == newData:
                         actionSuccessful=True
                     retry = retry +1
                 if actionSuccessful:
@@ -1513,9 +1513,9 @@ class Vehicle:
         if self._relevantCapabilties.get('auxiliaryHeating', {}).get('active', False):
             allTimers= self.attrs.get('climatisationTimers',{}).get('timers', [])
             for singleTimer in allTimers:
-                if singleTimer.get('id',-1)==id:
+                if singleTimer.get('id',-1) == id:
                     if action in ['on', 'off']:
-                        if action=='on':
+                        if action == 'on':
                             enabled=True
                         else:
                             enabled=False
@@ -1633,12 +1633,12 @@ class Vehicle:
                     if timerDataId:
                         newTimers = datetime2string(self.attrs.get('climatisationTimers',{}).get('timers',[]))
                         for newTimer in newTimers:
-                            if newTimer.get('id',-1)==timerDataId:
+                            if newTimer.get('id',-1) == timerDataId:
                                 self._LOGGER.debug(f'Value of timer sent:{timerData}')
                                 self._LOGGER.debug(f'Value of timer read:{newTimer}')
-                                if timerData==newTimer: 
+                                if timerData == newTimer: 
                                     actionSuccessful=True
-                                elif timerDataCopy==newTimer: 
+                                elif timerDataCopy == newTimer: 
                                     self._LOGGER.debug('Data written and data read are the same, but the timer is activated.')
                                     actionSuccessful=True
                                 break
@@ -1842,7 +1842,7 @@ class Vehicle:
                         actionSuccessful = True
                     retry = retry +1
                 await self.update(updateType=1) #full update after set_refresh
-                if actionSuccessful == True: 
+                if actionSuccessful: 
                     self._LOGGER.debug('POST request for refresh successful. New status as expected.')
                     self._requests.get('refresh', {}).pop('id')
                     if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
@@ -1906,13 +1906,13 @@ class Vehicle:
     @property
     def deactivated(self) -> bool:
         if 'remote-availability' in self._connectivities:
-            if self._connectivities.get('remote-availability','')=='online':
+            if self._connectivities.get('remote-availability','') == 'online':
                 return False
         return True
 
     @property
     def is_deactivated_supported(self) -> bool:
-        if self._connectivities == None: # If API endpoint did not respond, self._connectivities can have the value None
+        if self._connectivities is None: # If API endpoint did not respond, self._connectivities can have the value None
             return True
         if 'remote-availability' in self._connectivities:
             return True
@@ -1977,7 +1977,7 @@ class Vehicle:
     def is_model_image_small_supported(self) -> bool:
         """Return true if model image url is not None."""
         if self._modelimages is not None:
-            if self._modelimages.get('images','').get('front_cropped','')!='':
+            if self._modelimages.get('images','').get('front_cropped','') != '':
                 return True
         return False
 
@@ -2158,7 +2158,7 @@ class Vehicle:
     def charging(self) -> int:
         """Return battery level"""
         cstate2 = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('state', '')
-        cstate = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
+        cstate = '' #self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
         if cstate in ['charging', 'Charging'] or cstate2 in ['charging', 'Charging']:
             return 1
         return 0
@@ -2166,16 +2166,16 @@ class Vehicle:
     @property
     def is_charging_supported(self) -> bool:
         """Return true if charging is supported"""
-        #if self.attrs.get('charging', False):
-        #    if 'status' in self.attrs.get('charging', {}):
-        #        if 'charging' in self.attrs.get('charging')['status']:
-        #            if 'state' in self.attrs.get('charging')['status']['charging']:
-        #                return True
-        if self.attrs.get('mycar', False):
-            if 'services' in self.attrs.get('mycar', {}):
-                if 'charging' in self.attrs.get('mycar')['services']:
-                    if 'status' in self.attrs.get('mycar')['services']['charging']:
+        if self.attrs.get('charging', False):
+            if 'status' in self.attrs.get('charging', {}):
+                if 'charging' in self.attrs.get('charging')['status']:
+                    if 'state' in self.attrs.get('charging')['status']['charging']:
                         return True
+        #if self.attrs.get('mycar', False):
+        #    if 'services' in self.attrs.get('mycar', {}):
+        #        if 'charging' in self.attrs.get('mycar')['services']:
+        #            if 'status' in self.attrs.get('mycar')['services']['charging']:
+        #                return True
         return False
 
     @property
@@ -2197,30 +2197,31 @@ class Vehicle:
     def battery_level(self) -> int:
         """Return battery level"""
         level = 0
-        if self.attrs.get('mycar', False):
-            level = int(self.attrs.get('mycar',{}).get('services', {}).get('charging', {}).get('currentPct', 0))
+        #if self.attrs.get('mycar', False):
+        #    level = int(self.attrs.get('mycar',{}).get('services', {}).get('charging', {}).get('currentPct', 0))
         if level == 0:
             if self.attrs.get('charging', False):
                 if int(self.attrs.get('charging').get('status', {}).get('battery', {}).get('currentSocPercentage', 0)) > 0:
                     level = int(self.attrs.get('charging').get('status', {}).get('battery', {}).get('currentSocPercentage', 0))
-                    self._LOGGER.warning('Battery level according to mycar data is zero. Using data from charging status.')
+                    #self._LOGGER.warning('Battery level according to mycar data is zero. Using data from charging status.')
                 else:
-                    self._LOGGER.warning('Battery level according to mycar data and charging status is zero. So it is really zero or both API endpoints show a temporary malfunction.')
+                    self._LOGGER.warning('Battery level according to charging status is zero. So it is really zero or the API endpoint shows a temporary malfunction.')
+                    #self._LOGGER.warning('Battery level according to mycar data and charging status is zero. So it is really zero or both API endpoints show a temporary malfunction.')
         return level
 
     @property
     def is_battery_level_supported(self) -> bool:
         """Return true if battery level is supported"""
-        #if self.attrs.get('charging', False):
-        #    if 'status' in self.attrs.get('charging'):
-        #        if 'battery' in self.attrs.get('charging')['status']:
-        #            if 'currentSocPercentage' in self.attrs.get('charging')['status']['battery']:
-        #                return True
-        if self.attrs.get('mycar', False):
-            if 'services' in self.attrs.get('mycar'):
-                if 'charging' in self.attrs.get('mycar')['services']:
-                    if 'currentPct' in self.attrs.get('mycar')['services']['charging']:
+        if self.attrs.get('charging', False):
+            if 'status' in self.attrs.get('charging'):
+                if 'battery' in self.attrs.get('charging')['status']:
+                    if 'currentSocPercentage' in self.attrs.get('charging')['status']['battery']:
                         return True
+        #if self.attrs.get('mycar', False):
+        #    if 'services' in self.attrs.get('mycar'):
+        #        if 'charging' in self.attrs.get('mycar')['services']:
+        #            if 'currentPct' in self.attrs.get('mycar')['services']['charging']:
+        #                return True
         return False
 
     @property
@@ -2246,7 +2247,7 @@ class Vehicle:
     @property
     def slow_charge(self) -> bool:
         """Return charger max ampere setting."""
-        if self.charge_max_ampere=='reduced':
+        if self.charge_max_ampere == 'reduced':
             return True
         return False
 
@@ -2299,10 +2300,10 @@ class Vehicle:
         """Return minutes to charging complete"""
         #if self.external_power:
         if self.charging:
-            #if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('remainingTimeInMinutes', False):
-            #    minutes = int(self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('remainingTimeInMinutes', 0))
-            if self.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('remainingTime', False):
-                minutes = int(self.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('remainingTime', 0))
+            if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('remainingTimeInMinutes', False):
+                minutes = int(self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('remainingTimeInMinutes', 0))
+            #if self.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('remainingTime', False):
+            #    minutes = int(self.attrs.get('mycar', {}).get('services', {}).get('charging', {}).get('remainingTime', 0))
             else:
                 minutes = 0
             return minutes
@@ -2403,7 +2404,7 @@ class Vehicle:
     def charging_state(self):
         """Return true if vehicle is charging."""
         check2 = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('state', '')
-        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
+        check = '' #self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
         if check in ('charging','Charging') or check2 in ('charging','Charging'):
             return True
         else:
@@ -2412,19 +2413,20 @@ class Vehicle:
     @property
     def is_charging_state_supported(self) -> bool:
         """Charging state supported."""
-        #if self.attrs.get('charging', {}).get('status', {}).get('state', False):
-        #    return True
-        if self.attrs.get('mycar', False):
-            if 'services' in self.attrs.get('mycar', {}):
-                if 'charging' in self.attrs.get('mycar')['services']:
-                    if 'status' in self.attrs.get('mycar')['services']['charging']:
-                        return True
+        if self.attrs.get('charging', {}).get('status', {}).get('state', False):
+            return True
+        #if self.attrs.get('mycar', False):
+        #    if 'services' in self.attrs.get('mycar', {}):
+        #        if 'charging' in self.attrs.get('mycar')['services']:
+        #            if 'status' in self.attrs.get('mycar')['services']['charging']:
+        #                return True
         return False
 
     @property
     def charging_mode(self):
         """Return vehicle's charge mode."""
-        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
+        check = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('mode', '')
+        #check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeMode','')
         if check not in ('manual','profile','timer', 'off', 'invalid'):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging mode. Please open an issue.")
         return check.capitalize()
@@ -2432,16 +2434,20 @@ class Vehicle:
     @property
     def is_charging_mode_supported(self) -> bool:
         """Charging mode supported."""
-        if self.attrs.get('mycar', False):
-            if 'services' in self.attrs.get('mycar', {}):
-                if 'charging' in self.attrs.get('mycar')['services']:
-                    if 'chargeMode' in self.attrs.get('mycar')['services']['charging']:
-                        return True
+        if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('mode', False):
+            return True
+        #if self.attrs.get('mycar', False):
+        #    if 'services' in self.attrs.get('mycar', {}):
+        #        if 'charging' in self.attrs.get('mycar')['services']:
+        #            if 'chargeMode' in self.attrs.get('mycar')['services']['charging']:
+        #                return True
         return False
 
     @property
     def charging_preferred_mode(self):
         """Return vehicle's preferred charge mode."""
+        # I think, this attribute has to be deduced from the charging/profiles
+        #check = self.attrs.get('charging', {}).get('profiles', {}).get('profiles', [])
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('preferredChargeMode','')
         if check not in ('manual','preferredChargingTimes',''):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging preferred mode. Please open an issue.")
@@ -2456,6 +2462,8 @@ class Vehicle:
     @property
     def is_charging_preferred_mode_supported(self) -> bool:
         """Charging preferred mode supported."""
+        #if self.attrs.get('charging', {}).get('profiles', {}).get('profiles', []):
+        #    return True
         if self.attrs.get('mycar', False):
             if 'services' in self.attrs.get('mycar', {}):
                 if 'charging' in self.attrs.get('mycar')['services']:
@@ -2466,8 +2474,9 @@ class Vehicle:
     @property
     def charging_profile_defined(self):
         """Return true if chargeSettings is 'profile'."""
+        #check = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', '')
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeSettings','')
-        if check== 'profile':
+        if check == 'profile':
             return True
         else:
             return False
@@ -2475,6 +2484,8 @@ class Vehicle:
     @property
     def is_charging_profile_defined_supported(self) -> bool:
         """Charging profile defined supported."""
+        #if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', False):
+        #    return True
         if self.attrs.get('mycar', False):
             if 'services' in self.attrs.get('mycar', {}):
                 if 'charging' in self.attrs.get('mycar')['services']:
@@ -2487,8 +2498,8 @@ class Vehicle:
         """Return true if energy is flowing to (i.e. charging) or from (i.e. climating with battery power) the battery."""
         if self.charging_state:
             return True
-        #check = self.attrs.get('charging', {}).get('status', {}).get('state', '')
-        check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
+        check = self.attrs.get('charging', {}).get('status', {}).get('state', '')
+        #check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('status','')
         if self.is_electric_climatisation_supported:
             if self.electric_climatisation and check not in {'charging','Charging', 'conservation','Conservation'}:
                 # electric climatisation is on and car is not charging or conserving power 
@@ -2631,65 +2642,89 @@ class Vehicle:
     @property
     def primary_range(self):
         value = -1
-        if 'engines' in self.attrs.get('mycar'):
-            value = self.attrs.get('mycar')['engines']['primary'].get('rangeKm', 0)
+        if len(self.attrs.get('ranges', [])) > 0:
+            value = self.attrs.get('ranges')[0].get('value', 0.0)
+        #if 'engines' in self.attrs.get('mycar'):
+        #    value = self.attrs.get('mycar')['engines']['primary'].get('rangeKm', 0)
         return int(value)
 
     @property
     def is_primary_range_supported(self) -> bool:
-        if self.attrs.get('mycar', False):
-            if 'engines' in self.attrs.get('mycar', {}):
-                if 'primary' in self.attrs.get('mycar')['engines']:
-                    if 'rangeKm' in self.attrs.get('mycar')['engines']['primary']:
-                        return True
+        if len(self.attrs.get('ranges', [])) > 0:
+            if self.attrs.get('ranges')[0].get('value', False):
+                return True
+        #if self.attrs.get('mycar', False):
+        #    if 'engines' in self.attrs.get('mycar', {}):
+        #        if 'primary' in self.attrs.get('mycar')['engines']:
+        #            if 'rangeKm' in self.attrs.get('mycar')['engines']['primary']:
+        #                return True
         return False
 
     @property
     def primary_drive(self):
         value=''
-        if 'engines' in self.attrs.get('mycar'):
-            value = self.attrs.get('mycar')['engines']['primary'].get('fuelType', '')
+        if len(self.attrs.get('ranges', [])) > 0:
+            value = self.attrs.get('ranges')[0].get('rangeName', '')
+            if value.find('RangeKm') > 0:
+                value = value[:value.find('RangeKm')]
+        #if 'engines' in self.attrs.get('mycar'):
+        #    value = self.attrs.get('mycar')['engines']['primary'].get('fuelType', '')
         return value
 
     @property
     def is_primary_drive_supported(self) -> bool:
-        if self.attrs.get('mycar', False):
-            if 'engines' in self.attrs.get('mycar', {}):
-                if 'primary' in self.attrs.get('mycar')['engines']:
-                    if 'fuelType' in self.attrs.get('mycar')['engines']['primary']:
-                        return True
+        if len(self.attrs.get('ranges', [])) > 0:
+            if self.attrs.get('ranges')[0].get('rangeName', False):
+                return True
+        #if self.attrs.get('mycar', False):
+        #    if 'engines' in self.attrs.get('mycar', {}):
+        #        if 'primary' in self.attrs.get('mycar')['engines']:
+        #            if 'fuelType' in self.attrs.get('mycar')['engines']['primary']:
+        #                return True
         return False
 
     @property
     def secondary_range(self):
         value = -1
-        if 'engines' in self.attrs.get('mycar'):
-            value = self.attrs.get('mycar')['engines']['secondary'].get('rangeKm', 0)
+        if len(self.attrs.get('ranges', [])) > 1:
+            value = self.attrs.get('ranges')[1].get('value', 0.0)
+        #if 'engines' in self.attrs.get('mycar'):
+        #    value = self.attrs.get('mycar')['engines']['secondary'].get('rangeKm', 0)
         return int(value)
  
     @property
     def is_secondary_range_supported(self) -> bool:
-        if self.attrs.get('mycar', False):
-            if 'engines' in self.attrs.get('mycar', {}):
-                if 'secondary' in self.attrs.get('mycar')['engines']:
-                    if 'rangeKm' in self.attrs.get('mycar')['engines']['secondary']:
-                        return True
+        if len(self.attrs.get('ranges', [])) > 1:
+            if self.attrs.get('ranges')[1].get('value', False):
+                return True
+        #if self.attrs.get('mycar', False):
+        #    if 'engines' in self.attrs.get('mycar', {}):
+        #        if 'secondary' in self.attrs.get('mycar')['engines']:
+        #            if 'rangeKm' in self.attrs.get('mycar')['engines']['secondary']:
+        #                return True
         return False
 
     @property
     def secondary_drive(self):
         value=''
-        if 'engines' in self.attrs.get('mycar'):
-            value = self.attrs.get('mycar')['engines']['secondary'].get('fuelType', '')
+        if len(self.attrs.get('ranges', [])) > 1:
+            value = self.attrs.get('ranges')[1].get('rangeName', '')
+            if value.find('RangeKm') > 0:
+                value = value[:value.find('RangeKm')]
+        #if 'engines' in self.attrs.get('mycar'):
+        #    value = self.attrs.get('mycar')['engines']['secondary'].get('fuelType', '')
         return value
  
     @property
     def is_secondary_drive_supported(self) -> bool:
-        if self.attrs.get('mycar', False):
-            if 'engines' in self.attrs.get('mycar', {}):
-                if 'secondary' in self.attrs.get('mycar')['engines']:
-                    if 'fuelType' in self.attrs.get('mycar')['engines']['secondary']:
-                        return True
+        if len(self.attrs.get('ranges', [])) > 1:
+            if self.attrs.get('ranges')[1].get('rangeName', False):
+                return True
+        #if self.attrs.get('mycar', False):
+        #    if 'engines' in self.attrs.get('mycar', {}):
+        #        if 'secondary' in self.attrs.get('mycar')['engines']:
+        #            if 'fuelType' in self.attrs.get('mycar')['engines']['secondary']:
+        #                return True
         return False
 
     @property
@@ -3571,11 +3606,11 @@ class Vehicle:
                     notEmpty = False
                     lastEntry['date']=element.get('day',{}).get('displayDate','')
                     for subElement in element.get('values',[]):
-                        if subElement['value'] != None: 
+                        if subElement['value'] is not None: 
                             lastEntry[subElement['id']]=subElement['value']
                         else:
                             lastEntry[subElement['id']]=subElement['total']
-                        if subElement.get('id','')=='drivingTime' and lastEntry[subElement['id']]!=0:
+                        if subElement.get('id','') == 'drivingTime' and lastEntry[subElement['id']] != 0:
                             notEmpty = True
                     if notEmpty:
                         return lastEntry
@@ -3726,11 +3761,11 @@ class Vehicle:
                     notEmpty = False
                     lastEntry['date']=element.get('day',{}).get('displayDate','')
                     for subElement in element.get('values',[]):
-                        if subElement['value'] != None: 
+                        if subElement['value'] is not None: 
                             lastEntry[subElement['id']]=subElement['value']
                         else:
                             lastEntry[subElement['id']]=subElement['total']
-                        if subElement.get('id','')=='drivingTime' and lastEntry[subElement['id']]!=0:
+                        if subElement.get('id','') == 'drivingTime' and lastEntry[subElement['id']] != 0:
                             notEmpty = True
                     if notEmpty:
                         return lastEntry
@@ -3873,7 +3908,7 @@ class Vehicle:
     def area_alarm(self) -> bool:
         """Return True, if attribute areaAlarm is not {}"""
         alarmPresent = self.attrs.get('areaAlarm', {})
-        if alarmPresent !={}:
+        if alarmPresent != {}:
             # Delete an area alarm if it is older than 900 seconds
             alarmTimestamp = self.attrs.get('areaAlarm', {}).get('timestamp', 0)
             if alarmTimestamp < datetime.now(tz=None) - timedelta(seconds= 900):
@@ -4114,7 +4149,7 @@ class Vehicle:
         )
 
     def checkForRunningRequests(self, requestType=None) -> bool:
-        if self._requests.get(requestType, None)==None:
+        if self._requests.get(requestType, None) is None:
             raise PyCupraInvalidRequestException(f'Unknown request type {requestType} in checkForRunningRequests.')
         if requestType in {'batterycharge', 'departuretimer','departureprofile', 'climatisationtimer', 'climatisation', 'preheater', 'lock', 'honkandflash'}:
             waitTimeInMinutes=3
@@ -4140,18 +4175,18 @@ class Vehicle:
         return False
 
     def setWantedStateOfProperty(self, level1=None, level2=None, level3=None, value=None) -> bool:
-        if level1!=None:
-            if self._wantedStateOfProperty.get(level1, None)==None: 
-                if level2!=None:
+        if level1 is not None:
+            if self._wantedStateOfProperty.get(level1, None) is None: 
+                if level2 is not None:
                     self._wantedStateOfProperty[level1]={}
-                    if self._wantedStateOfProperty.get(level2, None)==None: 
-                        if level3!=None:
+                    if self._wantedStateOfProperty.get(level2, None)is None: 
+                        if level3 is not None:
                             self._wantedStateOfProperty[level1][level2]={}
-            if level2!=None and level3!=None:
-                if self._wantedStateOfProperty.get(level2, None)==None: 
+            if level2 is not None and level3 is not None:
+                if self._wantedStateOfProperty.get(level2, None) is None: 
                     self._wantedStateOfProperty[level1][level2]={}
                 self._wantedStateOfProperty[level1][level2][level3]=value
-            elif level2!=None:
+            elif level2 is not None:
                 self._wantedStateOfProperty[level1][level2]=value
             else:
                 self._wantedStateOfProperty[level1]=value
@@ -4161,15 +4196,15 @@ class Vehicle:
         return False
 
     def cleanWantedStateOfProperty(self, level1=None, level2=None, level3=None) -> bool:
-        if level1!=None:
-            if level2!=None and level3!=None:
-                if self._wantedStateOfProperty.get(level1, {}).get(level2,{}).get(level3, None)!=None:
+        if level1 is not None:
+            if level2 is not None and level3 is not None:
+                if self._wantedStateOfProperty.get(level1, {}).get(level2,{}).get(level3, None) is not None:
                     self._wantedStateOfProperty[level1][level2].pop(level3)
-            elif level2!=None:
-                if self._wantedStateOfProperty.get(level1, {}).get(level2,None)!=None:
+            elif level2 is not None:
+                if self._wantedStateOfProperty.get(level1, {}).get(level2,None) is not None:
                     self._wantedStateOfProperty[level1].pop(level2)
             else:
-                if self._wantedStateOfProperty.get(level1, None)!=None:
+                if self._wantedStateOfProperty.get(level1, None) is not None:
                     self._wantedStateOfProperty.pop(level1)
             return True
         else:
@@ -4185,7 +4220,7 @@ class Vehicle:
             self._LOGGER.info(f'No need to stop firebase. Firebase status={self.firebaseStatus}')
             return self.firebaseStatus
         
-        if self.firebase == None:
+        if self.firebase is None:
             self._LOGGER.error(f'Internal error: Firebase status={self.firebaseStatus} but firebase variable not set. Setting firebase status back to not initialised.')
             self.firebaseStatus = FIREBASE_STATUS_NOT_INITIALISED
             return self.firebaseStatus
@@ -4202,7 +4237,7 @@ class Vehicle:
 
     async def initialiseFirebase(self, firebaseCredentialsFileName='', updateCallback=None) -> int:
         # Check if firebase shall be used
-        if firebaseCredentialsFileName == None:
+        if firebaseCredentialsFileName is None:
             self._LOGGER.debug('No use of firebase wanted.')
             self.firebaseStatus = FIREBASE_STATUS_NOT_WANTED
             return self.firebaseStatus
@@ -4212,7 +4247,7 @@ class Vehicle:
         self._firebaseCredentialsFileName = firebaseCredentialsFileName
 
         # Check if firebase not already initialised
-        if self.firebaseStatus!= FIREBASE_STATUS_NOT_INITIALISED:
+        if self.firebaseStatus != FIREBASE_STATUS_NOT_INITIALISED:
             self._LOGGER.debug(f'No need to initialise firebase anymore. Firebase status={self.firebaseStatus}')
             return self.firebaseStatus
         
@@ -4228,7 +4263,7 @@ class Vehicle:
                 result = await self._connection.deleteSubscription(credentials)
 
         # Start firebase
-        if self.firebase == None:
+        if self.firebase is None:
             self.firebase = Firebase(logPrefix = self._logPrefix)
         success = await self.firebase.firebaseStart(self.onNotification, firebaseCredentialsFileName, brand=self._connection._session_auth_brand)
         if not success:

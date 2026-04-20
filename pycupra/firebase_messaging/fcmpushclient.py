@@ -454,7 +454,7 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             "Decrypted data for message %s is: %s", msg.persistent_id, ret_val
         )
         try:
-            if True: #self.callback!= None:
+            if True: #self.callback is not None:
                 await self.callback(ret_val, msg.persistent_id, self.callback_context)
             self._reset_error_count(ErrorType.NOTIFY)
         except Exception:

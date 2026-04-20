@@ -60,8 +60,6 @@ from .const import (
     BASE_AUTH,
     CLIENT_LIST,
     XCLIENT_ID,
-    XAPPVERSION,
-    XAPPNAME,
     AUTH_OIDCONFIG,
     AUTH_TOKEN,
     AUTH_TOKENKEYS,
@@ -126,7 +124,7 @@ class Connection:
     def __init__(self, session, brand='cupra', username='', password='', fulldebug=False, nightlyUpdateReduction=False, anonymise=True, tripStatisticsStartDate=None, logPrefix=None, hass=None, **optional):
         """ Initialize """
         self._logPrefix = logPrefix
-        if self._logPrefix!= None:
+        if self._logPrefix is not None:
             self._LOGGER= logging.getLogger(__name__+"_"+self._logPrefix)
         else:
             self._LOGGER = _LOGGER
@@ -282,9 +280,9 @@ class Connection:
         self._session_nonce = self._getNonce()
         self._session_state = self._getState()
 
-        if data.get('apiKey',None)!=None:
+        if data.get('apiKey',None) is not None:
             self._googleApiKey=data.get('apiKey')
-        if data.get('tokenFile',None)!=None:
+        if data.get('tokenFile',None) is not None:
             self._tokenFile=data.get('tokenFile')
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(None, self.readTokenFile, self._session_auth_brand)
@@ -438,7 +436,7 @@ class Connection:
             # Extract code and tokens
             auth_code = parse_qs(urlparse(location).query).get('code', [''])[0]
             # Save access, identity and refresh tokens according to requested client"""
-            if client=='cupra':
+            if client == 'cupra':
                 # oauthClient.fetch_token() does not work in home assistant, using POST request instead
                 #token_data= oauthClient.fetch_token(token_url=AUTH_TOKEN,  
                 #                       client_id=CLIENT_LIST[client].get('CLIENT_ID'), client_secret=CLIENT_LIST[client].get('CLIENT_SECRET'), authorization_response=location, 
@@ -737,9 +735,9 @@ class Connection:
             try:
                 if response.status == 204:
                     res = {'status_code': response.status}
-                elif response.status == 202 and method==METH_PUT:
+                elif response.status == 202 and method == METH_PUT:
                     res = response
-                elif response.status == 200 and method==METH_DELETE:
+                elif response.status == 200 and method == METH_DELETE:
                     res = response
                 elif 200 <= response.status <= 299:
                     # If this is a revoke token url, expect Content-Length 0 and return
@@ -768,7 +766,7 @@ class Connection:
             if self._session_fulldebug:
                 if 'image/png'  in response.headers.get('Content-Type', ''):
                     self._LOGGER.debug(self.anonymise(f'Request for "{url}" returned with status code [{response.status}]. Not showing response for Content-Type image/png.'))
-                elif method==METH_PUT or method==METH_DELETE:
+                elif method == METH_PUT or method == METH_DELETE:
                     # deepcopy() of res can produce errors, if res is the API response on PUT or DELETE
                     self._LOGGER.debug(f'Request for "{self.anonymise(url)}" returned with status code [{response.status}]. Not showing response for http {method}')
                 else:
@@ -899,13 +897,13 @@ class Connection:
                         vehicle["capabilitiesQueriedOn"] = response.get('queriedOn', '')
                     else:
                         self._LOGGER.warning(f"Failed to aquire capabilities information about vehicle with VIN ending on {vin[-4:]}.")
-                        if vehicle.get('capabilities',None)!=None:
+                        if vehicle.get('capabilities',None) is not None:
                             self._LOGGER.warning(f"Keeping the old capability information.")
                         else:
                             self._LOGGER.warning(f"Initialising vehicle without capabilities.")
                             vehicle["capabilities"]=[]
                     data = await self.getConnectivities(vin, APP_URI)
-                    if data:
+                    if isinstance(data, dict):
                         vehicle["connectivities"]=data
                         if data.get('remote-availability','') != 'online':
                             self._LOGGER.warning(f"Vehicle with VIN ending on {vin[-4:]} is offline during initialisation.")
@@ -1016,7 +1014,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch capabilities information')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch capabilities information, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1034,7 +1032,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch connection information')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch connection information, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1052,7 +1050,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch mycar data')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch mycar report, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1070,7 +1068,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch range data')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch range data, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1088,7 +1086,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch mileage information')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch mileage information, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1106,7 +1104,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch warnlights')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch warnlights, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1147,7 +1145,7 @@ class Connection:
                             if len(pic)>0:
                                 loop = asyncio.get_running_loop()
                                 await loop.run_in_executor(None, self.writeImageFile, pos,pic, images, vin)
-                            if pos=='front':
+                            if pos == 'front':
                                 # Crop the front image to a square format
                                 try:
                                     im= Image.open(BytesIO(pic))
@@ -1192,7 +1190,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch status data')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch status report, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1210,7 +1208,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch maintenance information')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch maintenance information, error: {error}')
-        if data=={}:
+        if data == {}:
             return False
         return data
 
@@ -1237,7 +1235,7 @@ class Connection:
     async def getTripStatistics(self, vin, baseurl, supportsCyclicTrips) -> dict | bool:
         """Get short term and cyclic trip statistics."""
         await self.set_token(self._session_auth_brand)
-        if self._session_tripStatisticsStartDate==None:
+        if self._session_tripStatisticsStartDate is None:
             # If connection was not initialised with parameter tripStatisticsStartDate, then 330 day is used for the CYCLIC trips and 25 days for the SHORT trips
             # (This keeps the statistics shorter in Home Assistant)
             startDate = (datetime.now() - timedelta(days= 330)).strftime('%Y-%m-01') # startDate should be the first day of a month when data granularity level is month 
@@ -1259,7 +1257,7 @@ class Connection:
             else:
                 self._LOGGER.info(f'Vehicle does not support cyclic trips.')
             #dataType='SHORT'
-            if self._session_tripStatisticsStartDate==None:
+            if self._session_tripStatisticsStartDate is None:
                 # If connection was not initialised with parameter tripStatisticsStartDate, then 330 day is used for the CYCLIC trips and 25 days for the SHORT trips
                 # (This keeps the statistics shorter in Home Assistant)
                 startDate = (datetime.now() - timedelta(days= 25)).strftime('%Y-%m-%d')
@@ -1325,7 +1323,7 @@ class Connection:
         await self.set_token(self._session_auth_brand)
         try:
             response = await self.get(API_CLIMATISATION_TIMERS.format(baseurl=baseurl, vin=vin))
-            if response.get('timers', 0)!=0: #check if element 'timers' present, even if empty
+            if response.get('timers', 0) != 0: #check if element 'timers' present, even if empty
                 data={}
                 data['climatisationTimers'] = response
                 return data
@@ -1361,9 +1359,9 @@ class Connection:
             response = await self.get(API_DEPARTURE_PROFILES.format(baseurl=baseurl, vin=vin))
             if response.get('timers', {}):
                 for e in range(len(response.get('timers', []))):
-                    if response['timers'][e].get('singleTimer','')==None:
+                    if response['timers'][e].get('singleTimer','') is None:
                         response['timers'][e].pop('singleTimer')
-                    if response['timers'][e].get('recurringTimer','')==None:
+                    if response['timers'][e].get('recurringTimer','') is None:
                         response['timers'][e].pop('recurringTimer')
                 data={}
                 data['departureProfiles'] = response
@@ -1404,7 +1402,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch climatisation settings')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch climatisation settings, error: {error}')
-        if data['climater']=={}:
+        if data['climater'] == {}:
             return False
         return data
 
@@ -1439,7 +1437,7 @@ class Connection:
                 self._LOGGER.info('Unhandled error while trying to fetch charging modes')"""
             if chargingProfilesActivated:
                 response = await self.get(API_CHARGING_PROFILES.format(baseurl=baseurl, vin=vin))
-                if response.get('profiles', 0)!=0:
+                if response.get('profiles', 0) != 0:
                     chargingProfiles = response
                 elif response.get('status_code', {}):
                     self._LOGGER.warning(f'Could not fetch charging profiles, HTTP status code: {response.get("status_code")}')
@@ -1616,9 +1614,9 @@ class Connection:
             if mode in {'start', 'stop'}:
                 capability='charging'
                 return await self._setViaAPI((API_REQUESTS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode))
-            elif mode=='settings':
+            elif mode == 'settings':
                 return await self._setViaAPI((API_CHARGING+"/{mode}").format(baseurl=baseurl, vin=vin, mode=mode), json=data)
-            elif mode=='update-settings' or mode=='update-battery-care':
+            elif mode == 'update-settings' or mode == 'update-battery-care':
                 capability='charging'
                 return await self._setViaAPI((API_ACTIONS+'/{mode}').format(baseurl=baseurl, vin=vin, capability=capability, mode=mode), json=data)
             else:
@@ -1726,7 +1724,7 @@ class Connection:
         try:
             url= API_DESTINATION.format(baseurl=baseurl, vin=vin)
             response = await self._request(METH_PUT, url, json=data)
-            if response.status==202: #[202 Accepted]
+            if response.status == 202: #[202 Accepted]
                 self._LOGGER.debug(f'Destination {data[0]} successfully sent to API.')
                 return response
             else:
@@ -1853,7 +1851,7 @@ class Connection:
                 if aud == CLIENT_LIST[client].get('CLIENT_ID', ''):
                     req = await self._session.get(url = AUTH_TOKENKEYS)
                     break
-            if req == None:
+            if req is None:
                 return False
             
             # Fetch key list
@@ -2042,7 +2040,7 @@ class Connection:
                         trip = self.monthlyTripData.get(vehicle.vin,{}).get(entryDate,{})
                     else:
                         trip = self.dailyTripData.get(vehicle.vin,{}).get(entryDate,{})
-                    if trip=={}:
+                    if trip == {}:
                         self._LOGGER.warning(f'Did not find trip for date {entryDate}')
                     writer.writerow({
                         'rowNo': rowCounter,
@@ -2078,9 +2076,9 @@ class Connection:
             currentDaySumElement = listOfDailySums[index]
             #self._LOGGER.debug(f'Entry = {currentDaySumElement}')
             entryDate = currentDaySumElement.get('date','2000-01-01')
-            if self.dailyTripData.get(vin,{})=={}:
+            if self.dailyTripData.get(vin,{}) == {}:
                 self.dailyTripData[vin] = {}
-            if self.dailyTripData[vin].get(entryDate,{})!={}:
+            if self.dailyTripData[vin].get(entryDate,{}) != {}:
                 #entryDate is already present in self.dailyTripData
                 if currentDaySumElement.get('drivingTime',0.0) != self.dailyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
                     currentDaySumElement.get('distanceDriven',0.0) != self.dailyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
@@ -2093,7 +2091,7 @@ class Connection:
                     self.dailyTripData[vin][entryDate]['fuelConsumption'] = currentDaySumElement.get('fuelConsumption',0.0)
                     self.dailyTripData[vin][entryDate]['speed'] = currentDaySumElement.get('speed',0.0)
                     self.dailyTripData[vin][entryDate]['endMileage'] = backwardCalculatedMileage
-                    if backwardCalculatedMileage!=latestMileage:
+                    if backwardCalculatedMileage != latestMileage:
                         self.dailyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because driving time or distance changed.'
                     updated = True
                 else:
@@ -2113,7 +2111,7 @@ class Connection:
                 self.dailyTripData[vin][entryDate]['distanceDriven'] = currentDaySumElement.get('distanceDriven',0.0)
                 self.dailyTripData[vin][entryDate]['speed'] = currentDaySumElement.get('speed',0.0)
                 self.dailyTripData[vin][entryDate]['comment'] = ''
-                if backwardCalculatedMileage!=latestMileage:
+                if backwardCalculatedMileage != latestMileage:
                     self.dailyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because it was not already present in daily sum history.'
                 if backwardCalculatedMileage < 1:
                     self._LOGGER.debug(f'Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
@@ -2140,7 +2138,7 @@ class Connection:
             entryDate = currentMonthSumElement.get('date','2000-01-01')
             if self.monthlyTripData.get(vin,{})=={}:
                 self.monthlyTripData[vin] = {}
-            if self.monthlyTripData[vin].get(entryDate,{})!={}:
+            if self.monthlyTripData[vin].get(entryDate,{}) != {}:
                 #entryDate is already present in self.monthlyTripData
                 if currentMonthSumElement.get('drivingTime',0.0) != self.monthlyTripData[vin].get(entryDate,{}).get('drivingTime', 0.0) or \
                     currentMonthSumElement.get('distanceDriven',0.0) != self.monthlyTripData[vin].get(entryDate,{}).get('distanceDriven', 0.0):
@@ -2153,7 +2151,7 @@ class Connection:
                     self.monthlyTripData[vin][entryDate]['fuelConsumption'] = currentMonthSumElement.get('fuelConsumption',0.0)
                     self.monthlyTripData[vin][entryDate]['speed'] = currentMonthSumElement.get('speed',0.0)
                     self.monthlyTripData[vin][entryDate]['endMileage'] = backwardCalculatedMileage
-                    if backwardCalculatedMileage!=latestMileage:
+                    if backwardCalculatedMileage != latestMileage:
                         self.monthlyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older month, because driving time or distance changed.'
                     updated = True
                 else:
@@ -2173,7 +2171,7 @@ class Connection:
                 self.monthlyTripData[vin][entryDate]['distanceDriven'] = currentMonthSumElement.get('distanceDriven',0.0)
                 self.monthlyTripData[vin][entryDate]['speed'] = currentMonthSumElement.get('speed',0.0)
                 self.monthlyTripData[vin][entryDate]['comment'] = ''
-                if backwardCalculatedMileage!=latestMileage:
+                if backwardCalculatedMileage != latestMileage:
                     self.monthlyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because it was not already present in daily sum history.'
                 if backwardCalculatedMileage < 1:
                     self._LOGGER.debug(f'Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
@@ -2236,7 +2234,7 @@ def convertTripStatisticsData(dataFromAPI) -> list:
         newEntry = {}
         newEntry['date']=element.get('day',{}).get('id',datetime(year=1970, month=1, day= 1)).strftime('%Y-%m-%d')
         for subElement in element.get('values',[]):
-            if subElement['value'] != None: 
+            if subElement['value'] is not None: 
                 newEntry[subElement['id']]=subElement['value']
             else:
                 newEntry[subElement['id']]=subElement['total']
