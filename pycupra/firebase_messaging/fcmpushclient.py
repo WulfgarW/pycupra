@@ -733,7 +733,7 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                             await self._reset()
                         continue
                     else:
-                        _logger.exception("Unexpected exception during read\n")
+                        _logger.exception("Unexpected exception during read: %s\n", type(osex).__name__)
                         if self._try_increment_error_count(ErrorType.CONNECTION):
                             _logger.debug("Calling reset()\n")
                             await self._reset()

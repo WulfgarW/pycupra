@@ -79,11 +79,16 @@ class Instrument:
 
     @property
     def is_supported(self):
-        supported = 'is_' + self.attr + "_supported"
-        if hasattr(self.vehicle, supported):
-            return getattr(self.vehicle, supported)
-        else:
+        try:
+            supported = 'is_' + self.attr + "_supported"
+            if hasattr(self.vehicle, supported):
+                return getattr(self.vehicle, supported)
+            else:
+                return False
+        except Exception as error:
+            self._LOGGER.error(f'An error occurred in {supported}. Error: {error}')
             return False
+
 
 
 class Sensor(Instrument):
@@ -2415,10 +2420,14 @@ class EUDAInstrument:
 
     @property
     def is_supported(self):
-        supported = 'is_' + self.attr + "_supported"
-        if hasattr(self.vehicle, supported):
-            return getattr(self.vehicle, supported)
-        else:
+        try:
+            supported = 'is_' + self.attr + "_supported"
+            if hasattr(self.vehicle, supported):
+                return getattr(self.vehicle, supported)
+            else:
+                return False
+        except Exception as error:
+            self._LOGGER.error(f'An error occurred in {supported}. Error: {error}')
             return False
 
 

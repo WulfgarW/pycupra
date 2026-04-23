@@ -1319,13 +1319,20 @@ def GetVINFromFileName(fileName: str) -> str:
     if posSeparator>0:
         if posZip>posJson:
             # The file is a zip file
-            return fileName[:posSeparator]
-            # Seems, like they changed the name structure for zip files
-            #if posZip > posSeparator+1:
-            #    return fileName[posSeparator+1:posZip]
+            if fileName[:2] == '20': # Filename has timestamp before vin
+                if posZip > posSeparator+1:
+                    return fileName[posSeparator+1:posZip]
+            else:
+                # Filename has vin before timestamp
+                return fileName[:posSeparator]
         else:
             # The file is a json file
-            return fileName[:posSeparator]
+            if fileName[:2] == '20': # Filename has timestamp before vin
+                if posJson > posSeparator+1:
+                    return fileName[posSeparator+1:posJson]
+            else:
+                # Filename has vin before timestamp
+                return fileName[:posSeparator]
     return '' 
     
 def GetTimeStampFromFileName(fileName: str) -> datetime:
@@ -1336,18 +1343,23 @@ def GetTimeStampFromFileName(fileName: str) -> datetime:
         if posZip>posJson:
             # The file is a zip file
             if posSeparator>0 and posZip>posSeparator+2:
-                timeStampString = fileName[posSeparator+1:posZip-1]
+                if fileName[:2] == '20': # Filename has timestamp before vin
+                    timeStampString = fileName[0:posSeparator]
+                    # The timestamps are utc timestamps
+                    return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
+                # Filename has vin before timestamp
+                timeStampString = fileName[posSeparator+1:posZip]
                 # The timestamps are utc timestamps
                 return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
-            # Seems, like they have changed the name structure for zip files
-            #if posSeparator>0:
-            #    timeStampString = fileName[0:posSeparator]
-            #    # The timestamps are utc timestamps
-            #    return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
         else:
             # The file is a json file
             if posSeparator>0 and posJson>posSeparator+2:
-                timeStampString = fileName[posSeparator+1:posJson-1]
+                if fileName[:2] == '20': # Filename has timestamp before vin
+                    timeStampString = fileName[0:posSeparator]
+                    # The timestamps are utc timestamps
+                    return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
+                # Filename has vin before timestamp
+                timeStampString = fileName[posSeparator+1:posJson]
                 # The timestamps are utc timestamps
                 return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
     except :

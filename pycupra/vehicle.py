@@ -2148,7 +2148,7 @@ class Vehicle:
         """Return true if adblue level is supported."""
         if self.attrs.get('maintenance', False):
             if '0x02040C0001' in self.attrs.get('maintenance'):
-                if 'value' in self.attrs.get('maintenance')['0x02040C0001']:
+                if 'value' in self.attrs.get('maintenance', {}).get('0x02040C0001',{}):
                     if self.attrs.get('maintenance')['0x02040C0001'].get('value', 0) is not None:
                         return True
         return False
@@ -2168,8 +2168,8 @@ class Vehicle:
         """Return true if charging is supported"""
         if self.attrs.get('charging', False):
             if 'status' in self.attrs.get('charging', {}):
-                if 'charging' in self.attrs.get('charging')['status']:
-                    if 'state' in self.attrs.get('charging')['status']['charging']:
+                if 'charging' in self.attrs.get('charging').get('status',{}):
+                    if 'state' in self.attrs.get('charging').get('status',{}).get('charging',{}):
                         return True
         #if self.attrs.get('mycar', False):
         #    if 'services' in self.attrs.get('mycar', {}):
@@ -2212,11 +2212,8 @@ class Vehicle:
     @property
     def is_battery_level_supported(self) -> bool:
         """Return true if battery level is supported"""
-        if self.attrs.get('charging', False):
-            if 'status' in self.attrs.get('charging'):
-                if 'battery' in self.attrs.get('charging')['status']:
-                    if 'currentSocPercentage' in self.attrs.get('charging')['status']['battery']:
-                        return True
+        if 'currentSocPercentage' in self.attrs.get('charging').get('status',{}).get('battery',{}):
+            return True
         #if self.attrs.get('mycar', False):
         #    if 'services' in self.attrs.get('mycar'):
         #        if 'charging' in self.attrs.get('mycar')['services']:
@@ -2237,11 +2234,8 @@ class Vehicle:
     @property
     def is_charge_max_ampere_supported(self) -> bool:
         """Return true if Charger Max Ampere is supported"""
-        if self.attrs.get('charging', False):
-            if 'info' in self.attrs.get('charging', {}):
-                if 'settings' in self.attrs.get('charging')['info']:
-                    if 'maxChargeCurrentAc' in self.attrs.get('charging', {})['info']['settings']:
-                        return True
+        if 'maxChargeCurrentAc' in self.attrs.get('charging', {}).get('info',{}).get('settings',{}):
+            return True
         return False
 
     @property
@@ -2339,11 +2333,8 @@ class Vehicle:
     @property
     def is_charging_power_supported(self) -> bool:
         """Return true if charging power is supported."""
-        if self.attrs.get('charging', False):
-            if 'status' in self.attrs.get('charging'):
-                if 'charging' in self.attrs.get('charging')['status']:
-                    if 'chargedPowerInKw' in self.attrs.get('charging')['status']['charging']:
-                        return True
+        if 'chargedPowerInKw' in self.attrs.get('charging').get('status',{}).get('charging',{}):
+            return True
         return False
 
     @property
@@ -2356,12 +2347,8 @@ class Vehicle:
     @property
     def is_charging_battery_care_supported(self) -> bool:
         """Return true if battery care setting is supported."""
-        if self.attrs.get('charging', False):
-            if 'info' in self.attrs.get('charging', {}):
-                if 'settings' in self.attrs.get('charging')['info']:
-                    if 'chargingCareSettings' in self.attrs.get('charging', {})['info']:
-                        if 'batteryCareMode' in self.attrs.get('charging', {})['info']['chargingCareSettings']:
-                            return True
+        if 'batteryCareMode' in self.attrs.get('charging', {}).get('info',{}).get('chargingCareSettings',{}):
+            return True
         return False
 
     @property
@@ -2375,11 +2362,8 @@ class Vehicle:
     @property
     def is_charge_rate_supported(self) -> bool:
         """Return true if charge rate is supported."""
-        if self.attrs.get('charging', False):
-            if 'status' in self.attrs.get('charging'):
-                if 'charging' in self.attrs.get('charging')['status']:
-                    if 'rateInKmph' in self.attrs.get('charging')['status']['charging']:
-                        return True
+        if 'rateInKmph' in self.attrs.get('charging').get('status',{}).get('charging',{}):
+            return True
         return False
 
     @property
@@ -2446,11 +2430,14 @@ class Vehicle:
     @property
     def charging_preferred_mode(self):
         """Return vehicle's preferred charge mode."""
-        # I think, this attribute has to be deduced from the charging/profiles
-        #check = self.attrs.get('charging', {}).get('profiles', {}).get('profiles', [])
+        #check = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', '')
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('preferredChargeMode','')
         if check not in ('manual','preferredChargingTimes',''):
             self._LOGGER.warning(f"API returned an unknown value '{check}' for the charging preferred mode. Please open an issue.")
+        #if check == 'profile': # For charging>status>charging>settings
+        #    return 'Scheduled'
+        #if check == 'default': # For charging>status>charging>settings
+        #    return 'Now'
         if check == 'manual':
             return 'Now'
         if check == 'preferredChargingTimes':
@@ -2462,7 +2449,7 @@ class Vehicle:
     @property
     def is_charging_preferred_mode_supported(self) -> bool:
         """Charging preferred mode supported."""
-        #if self.attrs.get('charging', {}).get('profiles', {}).get('profiles', []):
+        #if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', False):
         #    return True
         if self.attrs.get('mycar', False):
             if 'services' in self.attrs.get('mycar', {}):
@@ -2474,7 +2461,8 @@ class Vehicle:
     @property
     def charging_profile_defined(self):
         """Return true if chargeSettings is 'profile'."""
-        #check = self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', '')
+        # I think, this attribute has to be deduced from the charging/profiles
+        #check = self.attrs.get('charging', {}).get('profiles', {}).get('profiles', [])
         check = self.attrs.get('mycar',{}).get('services',{}).get('charging',{}).get('chargeSettings','')
         if check == 'profile':
             return True
@@ -2484,7 +2472,7 @@ class Vehicle:
     @property
     def is_charging_profile_defined_supported(self) -> bool:
         """Charging profile defined supported."""
-        #if self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('settings', False):
+        #if self.attrs.get('charging', {}).get('profiles', {}).get('profiles', []):
         #    return True
         if self.attrs.get('mycar', False):
             if 'services' in self.attrs.get('mycar', {}):
@@ -2802,20 +2790,20 @@ class Vehicle:
         value = -1
         if self.is_fuel_level_supported:
             if not self.primary_drive == 'electric':
-                value= self.attrs.get('mycar')['engines']['primary'].get('levelPct',0)
+                value= self.attrs.get('mycar',{}).get('engines',{}).get('primary',{}).get('levelPct',0)
             elif not self.secondary_drive == 'electric':
-                 value= self.attrs.get('mycar')['engines']['primary'].get('levelPct',0)
+                 value= self.attrs.get('mycar',{}).get('engines',{}).get('secondary',{}).get('levelPct',0)
         return int(value)
 
     @property
     def is_fuel_level_supported(self) -> bool:
         if self.is_primary_drive_supported:
             if not self.primary_drive == 'electric':
-                if "levelPct" in self.attrs.get('mycar')['engines']['primary']:
+                if "levelPct" in self.attrs.get('mycar',{}).get('engines',{}).get('primary',{}):
                     return self.is_primary_range_supported
         elif self.is_secondary_drive_supported:
             if not self.secondary_drive == 'electric':
-                if "levelPct" in self.attrs.get('mycar')['engines']['secondary']:
+                if "levelPct" in self.attrs.get('mycar',{}).get('engines',{}).get('secondary',{}):
                     return self.is_secondary_range_supported
         return False
 
@@ -2831,10 +2819,8 @@ class Vehicle:
     @property
     def is_climatisation_target_temperature_supported(self) -> bool:
         """Return true if climatisation target temperature is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'targetTemperatureInCelsius' in self.attrs.get('climater', {})['settings']:
-                    return True
+        if 'targetTemperatureInCelsius' in self.attrs.get('climater', {}).get('settings',{}):
+            return True
         return False
 
     @property
@@ -2850,13 +2836,11 @@ class Vehicle:
     @property
     def is_climatisation_time_left_supported(self) -> bool:
         """Return true if remainingTimeToReachTargetTemperatureInMinutes is supported."""
-        if self.attrs.get('climater', False):
-            if 'remainingClimatisationTimeInMinutes' in self.attrs.get('climater', {}).get('status', {}).get('climatisationStatus', {}):
-                return True
+        if 'remainingClimatisationTimeInMinutes' in self.attrs.get('climater', {}).get('status', {}).get('climatisationStatus', {}):
+            return True
         # If auxiliaryHeating is present, then is_climatisation_time_left_supported() is also True
-        if self.attrs.get('climater', False):
-            if 'remainingClimatisationTimeInMinutes' in self.attrs.get('climater', {}).get('status', {}).get('auxiliaryHeatingStatus', {}):
-                return True
+        if 'remainingClimatisationTimeInMinutes' in self.attrs.get('climater', {}).get('status', {}).get('auxiliaryHeatingStatus', {}):
+            return True
         return False
 
     @property
@@ -2881,10 +2865,8 @@ class Vehicle:
     @property
     def is_climatisation_zone_front_left_supported(self) -> bool:
         """Return true if climatisation setting for zone front left is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'zoneFrontLeftEnabled' in self.attrs.get('climater', {})['settings']:
-                    return True
+        if 'zoneFrontLeftEnabled' in self.attrs.get('climater', {}).get('settings',{}):
+            return True
         return False
 
     @property
@@ -2895,10 +2877,8 @@ class Vehicle:
     @property
     def is_climatisation_zone_front_right_supported(self) -> bool:
         """Return true if climatisation setting for zone front right is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'zoneFrontRightEnabled' in self.attrs.get('climater', {})['settings']:
-                    return True
+        if 'zoneFrontRightEnabled' in self.attrs.get('climater', {}).get('settings',{}):
+            return True
         return False
 
 
@@ -2910,10 +2890,8 @@ class Vehicle:
     @property
     def is_climatisation_at_unlock_supported(self) -> bool:
         """Return true if climatisation setting for climatisation at unlock is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'climatisationAtUnlock' in self.attrs.get('climater', {})['settings']:
-                    return True
+        if 'climatisationAtUnlock' in self.attrs.get('climater', {}).get('settings',{}):
+            return True
         return False
 
     @property
@@ -2924,10 +2902,8 @@ class Vehicle:
     @property
     def is_climatisation_window_heating_enabled_supported(self) -> bool:
         """Return true if climatisation setting for window heating is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'windowHeatingEnabled' in self.attrs.get('climater', {})['settings']:
-                    return True
+        if 'windowHeatingEnabled' in self.attrs.get('climater', {}).get('settings',{}):
+            return True
         return False
     @property
     def climatisation_without_external_power(self):
@@ -2937,12 +2913,10 @@ class Vehicle:
     @property
     def is_climatisation_without_external_power_supported(self) -> bool:
         """Return true if climatisation on battery power is supported."""
-        if self.attrs.get('climater', False):
-            if 'settings' in self.attrs.get('climater', {}):
-                if 'climatisationWithoutExternalPower' in self.attrs.get('climater', {})['settings']:
-                    if self._relevantCapabilties.get('climatisation', {}).get('supportsOffGridClimatisation', False):
-                        # only return true for vehicles, where 'supportsOffGridClimatisation'= True
-                        return True
+        if 'climatisationWithoutExternalPower' in self.attrs.get('climater', {}).get('settings',{}):
+            if self._relevantCapabilties.get('climatisation', {}).get('supportsOffGridClimatisation', False):
+                # only return true for vehicles, where 'supportsOffGridClimatisation'= True
+                return True
         return False
 
     @property
@@ -3006,9 +2980,8 @@ class Vehicle:
     @property
     def is_auxiliary_climatisation_supported(self) -> bool:
         """Return true if vehicle has auxiliary climatisation."""
-        if self.attrs.get('climater', False):
-            if 'climatisationState' in self.attrs.get('climater', {}).get('status', {}).get('auxiliaryHeatingStatus', {}):
-                return True
+        if 'climatisationState' in self.attrs.get('climater', {}).get('status', {}).get('auxiliaryHeatingStatus', {}):
+            return True
         return False
 
     @property
