@@ -4238,7 +4238,8 @@ class Vehicle:
         # Start firebase
         if self.firebase is None:
             self.firebase = Firebase(logPrefix = self._logPrefix)
-        success = await self.firebase.firebaseStart(self.onNotification, firebaseCredentialsFileName, brand=self._connection._session_auth_brand)
+        #success = await self.firebase.firebaseStart(self.onNotification, firebaseCredentialsFileName, brand=self._connection._session_auth_brand)
+        success = await self.firebase.firebaseStart(self.syncOnNotification, firebaseCredentialsFileName, brand=self._connection._session_auth_brand)
         if not success:
             self.firebaseStatus = FIREBASE_STATUS_ACTIVATION_FAILED
             self._LOGGER.warning('Activation of firebase messaging failed.')
@@ -4264,7 +4265,10 @@ class Vehicle:
         self._LOGGER.info('Activation of firebase messaging was successful.')
         return self.firebaseStatus
 
-
+    def syncOnNotification(self, obj: Any, notification: str, data_message: Any) -> None:
+        #print("Synchronized code")
+        future = asyncio.get_event_loop().create_task(self.onNotification(obj, notification, data_message))
+        #await future
 
     async def onNotification(self, obj: Any, notification: str, data_message: Any) -> None:
         # Do something with the notification

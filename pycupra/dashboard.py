@@ -1886,7 +1886,8 @@ def create_instruments():
             attr="service_inspection",
             name="Service inspection days",
             icon="mdi:garage",
-            unit="days",
+            unit="d",
+            device_class="duration"
         ),
         Sensor(
             attr="service_inspection_distance",
@@ -1899,7 +1900,8 @@ def create_instruments():
             attr="oil_inspection",
             name="Oil inspection days",
             icon="mdi:oil",
-            unit="days",
+            unit="d",
+            device_class="duration"
         ),
         Sensor(
             attr="oil_inspection_distance",

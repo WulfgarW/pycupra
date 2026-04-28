@@ -454,8 +454,10 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             "Decrypted data for message %s is: %s", msg.persistent_id, ret_val
         )
         try:
+            #if True: #self.callback is not None:
+            #    await self.callback(ret_val, msg.persistent_id, self.callback_context)
             if True: #self.callback is not None:
-                await self.callback(ret_val, msg.persistent_id, self.callback_context)
+                self.callback(ret_val, msg.persistent_id, self.callback_context)
             self._reset_error_count(ErrorType.NOTIFY)
         except Exception:
             _logger.exception("Unexpected exception calling notification callback\n")
@@ -733,12 +735,20 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                             await self._reset()
                         continue
                     else:
-                        _logger.exception("Unexpected exception during read: %s\n", type(osex).__name__)
-                        if self._try_increment_error_count(ErrorType.CONNECTION):
-                            _logger.debug("Calling reset()\n")
-                            await self._reset()
+                        if (
+                            isinstance(osex, ssl.SSLError)  # pylint: disable=no-member
+                            and osex.reason == "APPLICATION_DATA_AFTER_CLOSE_NOTIFY"
+                        ) or isinstance(osex, TimeoutError):
+                            _logger.exception("Exception in inner try of _listen(). Exception type: %s. Shutting down FcmPushClient.\n", type(osex).__name__)
+                            self._terminate()
+                            continue
                         else:
-                            _logger.debug("Not calling reset()\n")
+                            _logger.exception("Unexpected exception during read: %s\n", type(osex).__name__)
+                            if self._try_increment_error_count(ErrorType.CONNECTION):
+                                _logger.debug("Calling reset()\n")
+                                await self._reset()
+                            else:
+                                _logger.debug("Not calling reset()\n")
         except Exception as ex:
             _logger.error(
                 "Unknown error: %s, shutting down FcmPushClient.\n%s",
