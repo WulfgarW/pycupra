@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """Functions to receive firebase cloud messaging notifications """
-"""Taken from https://github.com/sdb9696/firebase-messaging with small modifications"""
+"""Taken from https://github.com/sdb9696/firebase-messaging v0.4.5 with small modifications"""
 
 import asyncio
 import contextlib
@@ -31,7 +31,7 @@ from .const import (
     MCS_VERSION,
 )
 from .fcmregister import FcmRegister, FcmRegisterConfig
-from .mcs_pb2 import (  # pylint: disable=no-name-in-module
+from .proto.mcs_pb2 import (  # pylint: disable=no-name-in-module
     Close,
     DataMessageStanza,
     HeartbeatAck,
@@ -45,8 +45,8 @@ from .mcs_pb2 import (  # pylint: disable=no-name-in-module
 
 _logger = logging.getLogger(__name__)
 
-OnNotificationCallable = Callable[[Any, str, Any], None]
-CredentialsUpdatedCallable = Callable[[dict[str, Any], str], None]
+OnNotificationCallable = Callable[[dict[str, Any], str, Any], None]
+CredentialsUpdatedCallable = Callable[[dict[str, Any]], None]
 
 # MCS Message Types and Tags
 MCS_MESSAGE_TAG = {
@@ -92,10 +92,10 @@ class FcmPushClientConfig:  # pylint:disable=too-many-instance-attributes
     """Class to provide configuration to
     :class:`firebase_messaging.FcmPushClientConfig`.FcmPushClient."""
 
-    server_heartbeat_interval: int | None = 30 # original value was 10
+    server_heartbeat_interval: int | None = 10
     """Time in seconds to request the server to send heartbeats"""
 
-    client_heartbeat_interval: int | None = 40 # original value was 20
+    client_heartbeat_interval: int | None = 20
     """Time in seconds to send heartbeats to the server"""
 
     send_selective_acknowledgements: bool = True
@@ -111,6 +111,9 @@ class FcmPushClientConfig:  # pylint:disable=too-many-instance-attributes
 
     reset_interval: float = 3
     """Time in seconds to wait between resets after errors or disconnection."""
+
+    max_wait_in_listen_for_reset: int = 200
+    """Time in seconds to wait in _listen() for a _reset() to succeed."""
 
     heartbeat_ack_timeout: float = 5
     """Time in seconds to wait for a heartbeat ack before resetting."""
@@ -144,10 +147,10 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
 
     def __init__(
         self,
-        callback: OnNotificationCallable,
+        callback: Callable[[dict, str, Any | None], None],
         fcm_config: FcmRegisterConfig,
-        credentials: dict,
-        credentials_updated_callback, #: CredentialsUpdatedCallable,
+        credentials: dict | None = None,
+        credentials_updated_callback: CredentialsUpdatedCallable | None = None,
         *,
         callback_context: object | None = None,
         received_persistent_ids: list[str] | None = None,
@@ -294,46 +297,43 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         await self.writer.drain()  # type: ignore[union-attr]
 
     async def _receive_msg(self) -> Message | None:
-        try:
-            if self.first_message:
-                r = await self.reader.readexactly(2)  # type: ignore[union-attr]
-                version, tag = struct.unpack("BB", r)
-                if version < MCS_VERSION and version != 38:
-                    raise RuntimeError(f"protocol version {version} unsupported")
-                self.first_message = False
-            else:
-                r = await self.reader.readexactly(1)  # type: ignore[union-attr]
-                (tag,) = struct.unpack("B", r)
-            size = await self._read_varint32()
+        if self.first_message:
+            r = await self.reader.readexactly(2)  # type: ignore[union-attr]
+            version, tag = struct.unpack("BB", r)
+            if version < MCS_VERSION and version != 38:
+                raise RuntimeError(f"protocol version {version} unsupported")
+            self.first_message = False
+        else:
+            r = await self.reader.readexactly(1)  # type: ignore[union-attr]
+            (tag,) = struct.unpack("B", r)
+        size = await self._read_varint32()
 
-            self._log_verbose(
-                "Received message with tag %s and size %s",
-                tag,
-                size,
-            )
+        self._log_verbose(
+            "Received message with tag %s and size %s",
+            tag,
+            size,
+        )
 
-            if not size >= 0:
-                self._log_warn_with_limit("Unexpected message size %s", size)
-                return None
+        if not size >= 0:
+            self._log_warn_with_limit("Unexpected message size %s", size)
+            return None
 
-            buf = await self.reader.readexactly(size)  # type: ignore[union-attr]
+        buf = await self.reader.readexactly(size)  # type: ignore[union-attr]
 
-            msg_class = next(iter([c for c, t in MCS_MESSAGE_TAG.items() if t == tag]))
-            if not msg_class:
-                self._log_warn_with_limit("Unexpected message tag %s", tag)
-                return None
-            if isinstance(msg_class, str):
-                self._log_warn_with_limit("Unconfigured message class %s", msg_class)
-                return None
+        msg_class = next(iter([c for c, t in MCS_MESSAGE_TAG.items() if t == tag]))
+        if not msg_class:
+            self._log_warn_with_limit("Unexpected message tag %s", tag)
+            return None
+        if isinstance(msg_class, str):
+            self._log_warn_with_limit("Unconfigured message class %s", msg_class)
+            return None
 
-            payload = msg_class()  # type: ignore[operator]
-            payload.ParseFromString(buf)
-            self._log_verbose("Received payload: %s", self._msg_str(payload))
+        payload = msg_class()  # type: ignore[operator]
+        payload.ParseFromString(buf)
+        self._log_verbose("Received payload: %s", self._msg_str(payload))
 
-            return payload
-        except:
-            raise
-        
+        return payload
+
     async def _login(self) -> None:
         self.run_state = FcmPushClientRunState.STARTING_LOGIN
 
@@ -412,7 +412,7 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             return ""
         raise RuntimeError(f"couldn't find in app_data {key}")
 
-    async def _handle_data_message(
+    def _handle_data_message(
         self,
         msg: DataMessageStanza,
     ) -> None:
@@ -446,18 +446,21 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         decrypted = self._decrypt_raw_data(
             self.credentials, crypto_key, salt, msg.raw_data
         )
+        decrypted_json = None
         with contextlib_suppress(json.JSONDecodeError, ValueError):
             decrypted_json = json.loads(decrypted.decode("utf-8"))
 
+        if not decrypted_json:
+            self._log_warn_with_limit(
+                "Failed to decrypt data for message %s", msg.persistent_id
+            )
+
         ret_val = decrypted_json if decrypted_json else decrypted
-        self._log_verbose(
-            "Decrypted data for message %s is: %s", msg.persistent_id, ret_val
-        )
+        self._log_verbose("Data for message %s is: %s", msg.persistent_id, ret_val)
         try:
-            #if True: #self.callback is not None:
-            #    await self.callback(ret_val, msg.persistent_id, self.callback_context)
-            if True: #self.callback is not None:
-                self.callback(ret_val, msg.persistent_id, self.callback_context)
+            if not isinstance(ret_val, dict):
+                ret_val = {"message": ret_val}
+            self.callback(ret_val, msg.persistent_id, self.callback_context)
             self._reset_error_count(ErrorType.NOTIFY)
         except Exception:
             _logger.exception("Unexpected exception calling notification callback\n")
@@ -606,21 +609,10 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             return
 
         if isinstance(msg, DataMessageStanza):
-            #await self._handle_data_message(msg)
-            #self.persistent_ids.append(msg.persistent_id)
-            #if self.config.send_selective_acknowledgements:
-            #    await self._send_selective_ack(msg.persistent_id)
+            self._handle_data_message(msg)
+            self.persistent_ids.append(msg.persistent_id)
             if self.config.send_selective_acknowledgements:
-                # As handle_data_message with the callback of onNotification can take some time, send_selective_ack is called in parallel
-                await asyncio.gather(
-                    self._handle_data_message(msg),
-                    self._send_selective_ack(msg.persistent_id),
-                    return_exceptions=True
-                )
-                self.persistent_ids.append(msg.persistent_id)
-            else:
-                await self._handle_data_message(msg)
-                self.persistent_ids.append(msg.persistent_id)
+                await self._send_selective_ack(msg.persistent_id)
         elif isinstance(msg, HeartbeatPing):
             await self._handle_ping(msg)
         elif isinstance(msg, HeartbeatAck):
@@ -699,7 +691,23 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             while self.do_listen:
                 try:
                     if self.run_state == FcmPushClientRunState.RESETTING:
-                        await asyncio.sleep(1)
+                        counter = 0
+                        while (
+                            counter < FcmPushClientConfig.max_wait_in_listen_for_reset
+                            and (
+                                self.run_state == FcmPushClientRunState.RESETTING
+                                or self.run_state
+                                == FcmPushClientRunState.STARTING_CONNECTION
+                            )
+                        ):
+                            if (counter > 0) and (counter % 10 == 0):
+                                _logger.debug(f"Listen is waiting for reset to \
+                                    succeed. Already slept for {counter}s, and \
+                                    run state is still {self.run_state}.")
+                            counter = counter + 1
+                            await asyncio.sleep(1)
+                        _logger.info(f"In total listen waited {counter}s for reset \
+                            to succeed: run state is now {self.run_state}.")
                     elif msg := await self._receive_msg():
                         await self._handle_message(msg)
 
@@ -729,26 +737,13 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                                 "Expected read error during reset: %s",
                                 type(osex).__name__,
                             )
-                    elif isinstance(osex, ConnectionResetError):
-                        _logger.info("Connection reset by peer – reconnecting")
-                        if self._try_increment_error_count(ErrorType.CONNECTION):
-                            await self._reset()
-                        continue
                     else:
-                        if (
-                            isinstance(osex, ssl.SSLError)  # pylint: disable=no-member
-                            and osex.reason == "APPLICATION_DATA_AFTER_CLOSE_NOTIFY"
-                        ) or isinstance(osex, TimeoutError):
-                            _logger.exception("Exception in inner try of _listen(). Exception type: %s. Shutting down FcmPushClient.\n", type(osex).__name__)
-                            self._terminate()
-                            continue
+                        _logger.warning("Unexpected exception during read: %s, Detailed: %s", type(osex).__name__, osex)
+                        if self._try_increment_error_count(ErrorType.CONNECTION):
+                            #_logger.debug("Calling reset()")
+                            await self._reset()
                         else:
-                            _logger.exception("Unexpected exception during read: %s\n", type(osex).__name__)
-                            if self._try_increment_error_count(ErrorType.CONNECTION):
-                                _logger.debug("Calling reset()\n")
-                                await self._reset()
-                            else:
-                                _logger.debug("Not calling reset()\n")
+                            _logger.exception("Traceback for last of repeated unexpected exceptions during read\n")
         except Exception as ex:
             _logger.error(
                 "Unknown error: %s, shutting down FcmPushClient.\n%s",
@@ -759,7 +754,7 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         finally:
             await self._do_writer_close()
 
-    async def checkin_or_register(self, fcmCredentialsFileName) -> str:
+    async def checkin_or_register(self) -> str:
         """Check in if you have credentials otherwise register as a new client.
 
         :param sender_id: sender id identifying push service you are connecting to.
@@ -773,7 +768,7 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
             self.credentials_updated_callback,
             http_client_session=self._http_client_session,
         )
-        self.credentials = await self.register.checkin_or_register(fcmCredentialsFileName)
+        self.credentials = await self.register.checkin_or_register()
         # await self.register.fcm_refresh_install()
         await self.register.close()
         return self.credentials["fcm"]["registration"]["token"]
@@ -828,4 +823,3 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         dms.persistent_id = persistent_id
 
         # Not supported yet
-

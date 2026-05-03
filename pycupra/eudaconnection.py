@@ -199,7 +199,7 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                         self._LOGGER.info(f'Unable to login, {error}')
                     else:
-                        self._LOGGER.info(f'Unable to login.')
+                        self._LOGGER.info('Unable to login.')
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -217,7 +217,7 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                         self._LOGGER.info(f'Unable to login, {error}')
                     else:
-                        self._LOGGER.info(f'Unable to login.')
+                        self._LOGGER.info('Unable to login.')
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -253,17 +253,17 @@ class EUDAConnection:
                             self._loginError = f'Account is locked for another {timeout} seconds'
                             raise PyCupraAccountLockedException(f'Account is locked for another {timeout} seconds')
                         elif errorTxt == 'login.errors.password_invalid':
-                            self._loginError = f'Invalid credentials'
+                            self._loginError = 'Invalid credentials'
                             raise PyCupraAuthenticationException('Invalid credentials')
                         else:
                             self._LOGGER.warning(f'Login failed: {errorTxt}')
                         self._loginError = f'Login failed: {errorTxt}'
                         raise PyCupraLoginFailedException(errorTxt)
                     if 'terms-and-conditions' in location:
-                        self._loginError = f'The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        self._loginError = 'The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
                         raise PyCupraEULAException('The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
                     if 'consent/marketing' in location:
-                        self._loginError = f'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        self._loginError = 'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
                         raise PyCupraMarketingConsentException('The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"')
                     if 'user_id' in location: # Get the user_id which is needed for some later requests
                         self._user_id=parse_qs(urlparse(location).query).get('user_id', [''])[0]
@@ -294,7 +294,7 @@ class EUDAConnection:
                         self._LOGGER.debug('Got code: %s' % location)
                     pass
                 else:
-                    self._LOGGER.debug(f'Exception occured while logging in.')
+                    self._LOGGER.debug('Exception occured while logging in.')
                     raise PyCupraLoginFailedException(e)
 
             # Login at identity portal successful. Now following callback to user.html of EU Data Act portal
@@ -314,7 +314,7 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                         self._LOGGER.info(f'Unable to login, {error}')
                     else:
-                        self._LOGGER.info(f'Unable to login.')
+                        self._LOGGER.info('Unable to login.')
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -339,7 +339,7 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                         self._LOGGER.info(f'Unable to login, {error}')
                     else:
-                        self._LOGGER.info(f'Unable to login.')
+                        self._LOGGER.info('Unable to login.')
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -358,7 +358,7 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                         self._LOGGER.info(f'Unable to login, {error}')
                     else:
-                        self._LOGGER.info(f'Unable to login.')
+                        self._LOGGER.info('Unable to login.')
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -470,11 +470,11 @@ class EUDAConnection:
         # POST password
         self._session_auth_headers['Referer'] = pe_url
         self._session_auth_headers['Origin'] = authissuer
-        self._LOGGER.debug(f"Finalizing login")
+        self._LOGGER.debug("Finalizing login")
 
         client_id = EUDA_CLIENT_LIST['CLIENT_ID']
         pp_url = authissuer+'/'+post_action
-        if not 'signin-service' in pp_url or not client_id in pp_url:
+        if 'signin-service' not in pp_url or client_id not in pp_url:
             pp_url = authissuer+'/signin-service/v1/'+client_id+"/"+post_action
 
         if self._session_fulldebug:
@@ -493,7 +493,7 @@ class EUDAConnection:
 
     async def logout(self) -> None:
         """Logout, revoke tokens."""
-        self._LOGGER.info(f'Initiating logout.')
+        self._LOGGER.info('Initiating logout.')
         url = EUDA_API_LOGOUT.format(baseurl=EUDA_BASE_URL)
         #response = await self.get(url)
         response = await self._session._request(
@@ -664,7 +664,7 @@ class EUDAConnection:
             if error.status == 401:
                 self._LOGGER.error('Unauthorized')
             elif error.status == 400:
-                self._LOGGER.error(f'Bad request')
+                self._LOGGER.error('Bad request')
             elif error.status == 429:
                 self._LOGGER.warning('Too many requests. Further requests can only be made after the end of next trip in order to protect your vehicles battery.')
                 return 429
@@ -750,7 +750,7 @@ class EUDAConnection:
                             'logPrefix': self._logPrefix,
                         }
                         # Check if object already exist
-                        self._LOGGER.debug(f'Check if vehicle exists')
+                        self._LOGGER.debug('Check if vehicle exists')
                         if self.vehicle(vin) is not None:
                             self._LOGGER.debug(self.anonymise(f'Vehicle with VIN number {vin} already exist.'))
                             car = EUDAVehicle(self, newVehicle)
@@ -765,7 +765,7 @@ class EUDAConnection:
                         self._LOGGER.debug(self.anonymise(f'Vehicle {vehicle.get('vin', '')} can not be used. Role={vehicle.get('role','')}, enrollment status={vehicle.get('enrollmentStatus','')}'))
             except (PyCupraConfigException):
                 raise
-            except:
+            except Exception:
                 raise PyCupraInvalidRequestException("Unable to fetch associated vehicles for account")
         return data
 
@@ -822,7 +822,7 @@ class EUDAConnection:
             self._session_headers.pop('type')
             self._session_headers.pop('filename')
             return fileContent
-        except:
+        except Exception:
             self._LOGGER.debug('Could not fetch data file.')
             if self._session_headers.get('type', None) is not None:
                 self._session_headers.pop('type')
@@ -1009,7 +1009,7 @@ class EUDAConnection:
                     f.close()
                 data=json.loads(dataString)
                 return data, fzip.infolist()[0].filename
-            self._LOGGER.info(self.anonymise(f"No data file '{fileObj.name}' present."))
+            self._LOGGER.info(self.anonymise(f"No data file '{zipFileObj.name}' present."))
             return None, ''
         except Exception as e:
             self._LOGGER.warning(f'readZipFile() not successful. Error: {e}')
@@ -1040,7 +1040,7 @@ class EUDAConnection:
                     self.currentData[vin]['timeStamp']=timeStamp
                     self.currentData[vin]['Data']=dataFromFile.get('Data',{})
             else:
-                self._LOGGER.error(f"Wanted to copy data to raw data dict, but timestamp is already present.")
+                self._LOGGER.error("Wanted to copy data to raw data dict, but timestamp is already present.")
             return True
         except Exception as e:
             raise PyCupraException(f"extractInformationFromFile() encountered an error. Error: {e}")
@@ -1105,7 +1105,7 @@ class EUDAConnection:
 
     def readTripStatisticsFile(self) -> bool:
         try:
-            self._LOGGER.debug(f"Reading trip statistics files if present.")
+            self._LOGGER.debug("Reading trip statistics files if present.")
             #if self._hass:
             #    basePath = self._hass.config.path("custom_components/pycupra")
             #else:
@@ -1199,7 +1199,7 @@ class EUDAConnection:
             else:
                 vehicle._states.update(data)
                 self._LOGGER.debug(self.anonymise(f"Found data cluster of type 'all'. Name={vehicle._states.get('all', {}).get('Name','')}"))
-                identifier_all=vehicle._states['all'].get('Identifier','')
+                #identifier_all=vehicle._states['all'].get('Identifier','')
                 
             # Reading information for data cluster 'partial'
             identifier_partial=''
@@ -1211,21 +1211,8 @@ class EUDAConnection:
                 self._LOGGER.debug(self.anonymise(f"Found data cluster of type 'partial'. Name={vehicle._states.get('partial', {}).get('Name','')}"))
                 identifier_partial=vehicle._states['partial'].get('Identifier','')
                 
-            """self._session_headers['traceId'] = "vehicle-relation-fetch-04f0057d-dd78-4c5c-b0b1-f03f8d7add17"
-            url = "https://eu-data-act.drivesomethinggreater.com/proxy_api/vum/v2/users/me/relations/{vin}"
-            response = await self._session._request(
-                method= METH_GET,
-                str_or_url= url,
-                headers=self._session_headers,
-                cookies=self._session_cookies,
-            )
-            res= await response.content.read()
-            self._LOGGER.debug(f'url={url}')
-            self._LOGGER.debug(f'response={res}')
-            self._session_headers.pop('traceId')"""
-
             if identifier_partial == '':
-                self._LOGGER.warning(f"Cannot get list of available files of data cluster partial.")
+                self._LOGGER.warning("Cannot get list of available files of data cluster partial.")
                 return False
 
             fileList = await self.getListOfAvailableFiles(EUDA_BASE_URL, vehicle.vin, identifier_partial, 'partial')
@@ -1257,9 +1244,9 @@ class EUDAConnection:
                                     await loop.run_in_executor(None, self.writeDataFile, fileWithPath, fileContent)
                             self._LOGGER.debug(self.anonymise(f'Downloaded new file {fileName}.'))
                     else:
-                        self._LOGGER.error(f'List of available data contains an empty filename.')
+                        self._LOGGER.error('List of available data contains an empty filename.')
             else:
-                self._LOGGER.warning(f'List of available data is empty. Perhaps you have to wait for data files to become available.')
+                self._LOGGER.warning('List of available data is empty. Perhaps you have to wait for data files to become available.')
             return True
         except Exception as e:
             raise PyCupraException(f"getDataForOneVehicle() encountered an error. Error: {e}")
@@ -1362,7 +1349,7 @@ def GetTimeStampFromFileName(fileName: str) -> datetime:
                 timeStampString = fileName[posSeparator+1:posJson]
                 # The timestamps are utc timestamps
                 return datetime.strptime(timeStampString+'Z',"%Y%m%d%H%M%SZ").replace(tzinfo=timezone.utc).astimezone(None)
-    except :
+    except Exception:
         _LOGGER.error(f"Error in getTimeStampFromFileName for file name '{fileName}'")
     return datetime(2000,1,1).replace(tzinfo=timezone.utc).astimezone(None)
 

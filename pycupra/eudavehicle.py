@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Extract information from data files downloaded from the EU Data Act portal of Volkswagen group."""
+
+#Extract information from data files downloaded from the EU Data Act portal of Volkswagen group.
 import logging
-#import asyncio
-#from copy import deepcopy
-#from sys import version_info, argv
-#from datetime import timedelta, datetime, timezone
-#from urllib.parse import urljoin, parse_qs, urlparse, urlencode
-#from json import dumps as to_json
 
 from .const import (
     EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY,
@@ -24,10 +19,7 @@ from .const import (
 
     EUDA_OUTSIDE_TEMPERATURE_KEY,
     EUDA_OIL_LEVEL_ACTUAL_LEVEL_KEY,
-    EUDA_OIL_LEVEL_ADDITIONAL_OIL_LEVEL_KEY,
     EUDA_PARKING_BRAKE_KEY,
-
-    EUDA_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)

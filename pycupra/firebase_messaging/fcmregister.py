@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+"""Functions to receive firebase cloud messaging notifications """
+"""Taken from https://github.com/sdb9696/firebase-messaging v0.4.5 with small modifications"""
+
 import asyncio
 import json
 import logging
@@ -26,12 +29,12 @@ from .const import (
     GCM_SERVER_KEY_B64,
     SDK_VERSION,
 )
-from .android_checkin_pb2 import (
+from .proto.android_checkin_pb2 import (
     DEVICE_CHROME_BROWSER,
     AndroidCheckinProto,
     ChromeBuildProto,
 )
-from .checkin_pb2 import (
+from .proto.checkin_pb2 import (
     AndroidCheckinRequest,
     AndroidCheckinResponse,
 )
@@ -63,8 +66,8 @@ class FcmRegister:
     def __init__(
         self,
         config: FcmRegisterConfig,
-        credentials: dict,
-        credentials_updated_callback, #: Callable[[dict[str, Any], str], None] ,
+        credentials: dict | None = None,
+        credentials_updated_callback: Callable[[dict[str, Any]], None] | None = None,
         *,
         http_client_session: ClientSession | None = None,
         log_debug_verbose: bool = False,
@@ -384,7 +387,7 @@ class FcmRegister:
         gcm_data: dict,
         installation: dict,
         keys: dict,
-        retries: int = 4,
+        retries: int = 2,
     ) -> dict[str, Any] | None:
         headers = {
             "x-goog-api-key": self.config.api_key,
@@ -439,7 +442,7 @@ class FcmRegister:
                 await asyncio.sleep(1)
         return None
 
-    async def checkin_or_register(self, fcmCredentialsFileName) -> dict[str, Any]:
+    async def checkin_or_register(self) -> dict[str, Any]:
         """Check in if you have credentials otherwise register as a new client.
 
         :param sender_id: sender id identifying push service you are connecting to.
@@ -456,8 +459,8 @@ class FcmRegister:
                 return self.credentials
 
         self.credentials = await self.register()
-        if True: #self.credentials_updated_callback is not None:
-            await self.credentials_updated_callback(self.credentials, fcmCredentialsFileName)
+        if self.credentials_updated_callback:
+            self.credentials_updated_callback(self.credentials)
 
         return self.credentials
 

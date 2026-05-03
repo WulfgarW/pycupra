@@ -239,7 +239,7 @@ class Vehicle:
                     # Trying to activate firebase connection again
                     newStatus = await self.stopFirebase()
                     if newStatus != FIREBASE_STATUS_NOT_INITIALISED:
-                        self._LOGGER.debug(f'stopFirebase() not successful.')
+                        self._LOGGER.debug('stopFirebase() not successful.')
                         # Although stopFirebase() was not successful, the firebase status is reset to FIREBASE_STATUS_NOT_INITIALISED to allow a new initialisation
                         self.firebaseStatus = FIREBASE_STATUS_NOT_INITIALISED
                     newStatus = await self.initialiseFirebase(self._firebaseCredentialsFileName, self.updateCallback)
@@ -296,7 +296,7 @@ class Vehicle:
                 self._last_full_update = datetime.now(tz=None)
                 self._LOGGER.info(f'Performed full update for vehicle with VIN {self._connection.anonymise(self.vin)}.')
                 self._LOGGER.debug(f'So far about {self._connection._sessionRequestCounter} API calls since {self._connection._sessionRequestTimestamp}.')
-            except:
+            except Exception:
                 raise PyCupraException("Update failed")
             return True
         else:
@@ -504,8 +504,8 @@ class Vehicle:
                     self._LOGGER.error(f'Set charger maximum current to {value} is not supported.')
                     raise PyCupraInvalidRequestException(f'Set charger maximum current to {value} is not supported.')
             else:
-                self._LOGGER.error(f'Data type passed is invalid.')
-                raise PyCupraInvalidRequestException(f'Invalid data type.')
+                self._LOGGER.error('Data type passed is invalid.')
+                raise PyCupraInvalidRequestException('Invalid data type.')
             if data.get('maxChargeCurrentAc',None):
                 # set the new wanted state of the property slow_charge to be changed by the request
                 newValue = False
@@ -528,8 +528,8 @@ class Vehicle:
                     if self._relevantCapabilties.get('charging', {}).get('active', False) and self._relevantCapabilties.get('charging', {}).get('supportsTargetStateOfCharge', False):
                         data= deepcopy(self.attrs.get('charging',{}).get('info',{}).get('settings',{}))
                         if data == {}:
-                            self._LOGGER.error(f'Can not set target soc, because currently no charging settings are present.')
-                            raise PyCupraInvalidRequestException(f'Set target soc not possible. Charging settings not present.')
+                            self._LOGGER.error('Can not set target soc, because currently no charging settings are present.')
+                            raise PyCupraInvalidRequestException('Set target soc not possible. Charging settings not present.')
                         data['targetSoc'] = int(value)
                         action = 'settings'
                         if self._properties.get('platform','') == 'MOD4': # I assume, that for platform=MOD4 the call is different
@@ -538,15 +538,15 @@ class Vehicle:
                             action = 'update-settings'
 
                     else: 
-                        self._LOGGER.warning(f'Can not set target soc, because vehicle does not support this feature.')
+                        self._LOGGER.warning('Can not set target soc, because vehicle does not support this feature.')
                         return False
                 else:
                     self._LOGGER.error(f'Set target soc to {value} is not supported.')
                     raise PyCupraInvalidRequestException(f'Set target soc to {value} is not supported.')
             # Mimick app and set charger max ampere to Maximum/Reduced
             else:
-                self._LOGGER.error(f'Data type passed is invalid.')
-                raise PyCupraInvalidRequestException(f'Invalid data type.')
+                self._LOGGER.error('Data type passed is invalid.')
+                raise PyCupraInvalidRequestException('Invalid data type.')
             if self.checkForRunningRequests('batterycharge'):
                 raise PyCupraRequestInProgressException('Charging action already in progress')
             self.setWantedStateOfProperty('batterycharge', 'settings', 'target_soc', value=int(value))
@@ -563,11 +563,11 @@ class Vehicle:
                 if self._relevantCapabilties.get('charging', {}).get('active', False) and self._relevantCapabilties.get('batteryChargingCare', {}).get('active', False):
                     data['enabled'] = value
                 else: 
-                    self._LOGGER.warning(f'Can not change battery care setting, because vehicle does not support this feature.')
+                    self._LOGGER.warning('Can not change battery care setting, because vehicle does not support this feature.')
                     return False
             else:
-                self._LOGGER.error(f'Data type passed is invalid.')
-                raise PyCupraInvalidRequestException(f'Invalid data type.')
+                self._LOGGER.error('Data type passed is invalid.')
+                raise PyCupraInvalidRequestException('Invalid data type.')
             if self.checkForRunningRequests('batterycharge'):
                 raise PyCupraRequestInProgressException('Charging action already in progress')
             self.setWantedStateOfProperty('batterycharge', 'settings', 'charging_battery_care', value=value)
@@ -676,7 +676,7 @@ class Vehicle:
                 if limit in [0, 10, 20, 30, 40, 50]:
                     data['minSocPercentage'] = limit
                 else:
-                    raise PyCupraInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
+                    raise PyCupraInvalidRequestException('Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
             else:
                 raise PyCupraInvalidRequestException(f'Charge limit "{limit}" is not supported.')
             return await self._set_timers(data)
@@ -687,7 +687,7 @@ class Vehicle:
                 if limit in [0, 10, 20, 30, 40, 50]:
                     data['minSocPercentage'] = limit
                 else:
-                    raise PyCupraInvalidRequestException(f'Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
+                    raise PyCupraInvalidRequestException('Charge limit must be one of 0, 10, 20, 30, 40 or 50.')
             else:
                 raise PyCupraInvalidRequestException(f'Charge limit "{limit}" is not supported.')
             return await self._set_departure_profiles(data, action='minSocPercentage')
@@ -781,7 +781,7 @@ class Vehicle:
             if schedule.get("chargeMaxCurrent", None) is not None:
                 raise PyCupraInvalidRequestException('chargeMaxCurrent (yet) not supported.')
                 if isinstance(schedule.get('chargeMaxCurrent', None), str):
-                    if not schedule.get("chargeMaxCurrent", None) in ['Maximum', 'maximum', 'Max', 'max', 'Minimum', 'minimum', 'Min', 'min', 'Reduced', 'reduced']:
+                    if schedule.get("chargeMaxCurrent", None) not in ['Maximum', 'maximum', 'Max', 'max', 'Minimum', 'minimum', 'Min', 'min', 'Reduced', 'reduced']:
                         raise PyCupraInvalidRequestException('Charge current must be one of Maximum/Minimum/Reduced')
                 elif isinstance(schedule.get('chargeMaxCurrent', None), int):
                     if not 1 <= int(schedule.get("chargeMaxCurrent", 254)) < 255:
@@ -1207,9 +1207,9 @@ class Vehicle:
         if temp is not None:
             if not isinstance(temp, float) and not isinstance(temp, int):
                 self._LOGGER.error(f"Invalid type for temp. type={type(temp)}")
-                raise PyCupraInvalidRequestException(f"Invalid type for temp")
+                raise PyCupraInvalidRequestException("Invalid type for temp")
             elif not 16 <= float(temp) <=30:
-                raise PyCupraInvalidRequestException(f"Invalid value for temp")
+                raise PyCupraInvalidRequestException("Invalid value for temp")
         else:
             temp = self.climatisation_target_temperature
         #if hvpower is not None:
@@ -1664,7 +1664,7 @@ class Vehicle:
             raise PyCupraInvalidRequestException('No parking heater support.')
         if self.checkForRunningRequests('preheater'):
             raise PyCupraRequestInProgressException('A parking heater action is already in progress')
-        if not mode in ['heating', 'ventilation', 'off']:
+        if mode not in ['heating', 'ventilation', 'off']:
             self._LOGGER.error(f'{mode} is an invalid action for parking heater')
             raise PyCupraInvalidRequestException(f'{mode} is an invalid action for parking heater')
         if mode == 'off':
@@ -1787,8 +1787,8 @@ class Vehicle:
             response = await self._connection.setHonkAndFlash(self.vin, self._apibase, data)
             if not response:
                 self._requests['honkandflash'] = {'status': 'Failed'}
-                self._LOGGER.error(f'Failed to execute honk and flash action')
-                raise PyCupraException(f'Failed to execute honk and flash action')
+                self._LOGGER.error('Failed to execute honk and flash action')
+                raise PyCupraException('Failed to execute honk and flash action')
             else:
                 self._requests['remaining'] = response.get('rate_limit_remaining', -1)
                 self._requests['honkandflash'] = {
@@ -2356,8 +2356,7 @@ class Vehicle:
         """Return charge rate in km per h."""
         if self.attrs.get('charging', False):
             return int(self.attrs.get('charging', {}).get('status', {}).get('charging', {}).get('rateInKmph', 0))
-        else:
-            return 0
+        return 0
 
     @property
     def is_charge_rate_supported(self) -> bool:
@@ -2548,7 +2547,7 @@ class Vehicle:
                     'address': position_to_address,
                     'timestamp' : parkingTime
                 }
-        except:
+        except Exception:
             output = {
                 'lat': '?',
                 'lng': '?',
@@ -2584,7 +2583,7 @@ class Vehicle:
                     'address': position_to_address,
                     'timestamp' : parkingTime
                 }
-        except:
+        except Exception:
             output = {
                 'lat': '?',
                 'lng': '?',
@@ -2717,7 +2716,6 @@ class Vehicle:
 
     @property
     def electric_range(self):
-        value = -1
         if self.is_secondary_drive_supported:
             if self.secondary_drive == 'electric':
                 return self.secondary_range
@@ -2738,7 +2736,6 @@ class Vehicle:
 
     @property
     def combustion_range(self):
-        value = -1
         if self.is_primary_drive_supported:
             if not self.primary_drive == 'electric':
                 return self.primary_range
@@ -2957,7 +2954,7 @@ class Vehicle:
     def electric_climatisation(self) -> bool:
         """Return status of climatisation."""
         if self.attrs.get('climater', {}).get('status', {}).get('climatisationStatus', {}).get('climatisationState', False):
-            climatisation_type = self.attrs.get('climater', {}).get('settings', {}).get('heaterSource', '')
+            #climatisation_type = self.attrs.get('climater', {}).get('settings', {}).get('heaterSource', '')
             status = self.attrs.get('climater', {}).get('status', {}).get('climatisationStatus', {}).get('climatisationState', '')
             if status in ['heating', 'cooling', 'on']: #and climatisation_type == 'electric':
                 return True
@@ -3199,7 +3196,7 @@ class Vehicle:
 
     # Locks
     @property
-    def door_locked(self) -> bool:
+    def doors_locked(self) -> bool:
         # LEFT FRONT
         response = self.attrs.get('status')['doors']['frontLeft'].get('locked', 'false')
         if response != 'true':
@@ -3220,12 +3217,23 @@ class Vehicle:
         return True
 
     @property
-    def is_door_locked_supported(self) -> bool:
+    def is_doors_locked_supported(self) -> bool:
         response = 0
         if self.attrs.get('status', False):
             if 'doors' in self.attrs.get('status'):
                 response = self.attrs.get('status')['doors'].get('frontLeft', {}).get('locked', 0)
         return True if response != 0 else False
+
+    @property
+    def door_locked(self) -> bool:
+        return self.doors_locked
+
+    @property
+    def is_door_locked_supported(self) -> bool:
+        if self.is_doors_locked_supported:
+            if self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False):
+                return True
+        return False
 
     @property
     def trunk_locked(self):
@@ -3336,7 +3344,7 @@ class Vehicle:
                 timer = timerdata[0]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3357,7 +3365,7 @@ class Vehicle:
                 timer = timerdata[1]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3378,7 +3386,7 @@ class Vehicle:
                 timer = timerdata[2]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3403,7 +3411,7 @@ class Vehicle:
                 timer.pop('profileID', None)
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         elif self.attrs.get('timers', False):
             try:
@@ -3414,7 +3422,7 @@ class Vehicle:
                 else:
                     timer = {}
                 return timer
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3440,7 +3448,7 @@ class Vehicle:
                 timer.pop('profileID', None)
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         elif self.attrs.get('timers', False):
             try:
@@ -3451,7 +3459,7 @@ class Vehicle:
                 else:
                     timer = {}
                 return timer
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3477,7 +3485,7 @@ class Vehicle:
                 timer.pop('profileID', None)
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         elif self.attrs.get('timers', False):
             try:
@@ -3488,7 +3496,7 @@ class Vehicle:
                 else:
                     timer = {}
                 return timer
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3512,7 +3520,7 @@ class Vehicle:
                 timer = timerdata[0]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3533,7 +3541,7 @@ class Vehicle:
                 timer = timerdata[1]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -3554,7 +3562,7 @@ class Vehicle:
                 timer = timerdata[2]
                 data.update(timer)
                 return data
-            except:
+            except Exception:
                 pass
         return None
 
@@ -4058,7 +4066,7 @@ class Vehicle:
             for section in self._requests:
                 if self._requests[section].get('id', False):
                     return True
-        except:
+        except Exception:
             pass
         return False
 
@@ -4267,8 +4275,7 @@ class Vehicle:
 
     def syncOnNotification(self, obj: Any, notification: str, data_message: Any) -> None:
         #print("Synchronized code")
-        future = asyncio.get_event_loop().create_task(self.onNotification(obj, notification, data_message))
-        #await future
+        asyncio.get_event_loop().create_task(self.onNotification(obj, notification, data_message))
 
     async def onNotification(self, obj: Any, notification: str, data_message: Any) -> None:
         # Do something with the notification
@@ -4277,7 +4284,7 @@ class Vehicle:
 
         if self.firebaseStatus != FIREBASE_STATUS_ACTIVATED:
             if self.firebaseStatus != FIREBASE_STATUS_ACTIVATION_STOPPED:
-                self._LOGGER.info(f'While firebase is not fully activated, received notifications are just acknowledged.')
+                self._LOGGER.info('While firebase is not fully activated, received notifications are just acknowledged.')
                 # As long as the firebase status is not set to activated, ignore the notifications
                 return
             else:
@@ -4307,13 +4314,13 @@ class Vehicle:
             if self._requests.get('lock', {}).get('id', None):
                 openRequest= self._requests.get('lock', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('lock', {}).pop('id')
                     if self._requests.get('lock', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['lock']['status'] = 'Request failed'
                             self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
-                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
+                            self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['lock']['status'] = 'Request executed'
             if (self._last_get_statusreport < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
@@ -4337,7 +4344,7 @@ class Vehicle:
             if self._requests.get('departuretimer', {}).get('id', None):
                 openRequest= self._requests.get('departuretimer', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('departuretimer', {}).pop('id')
             if (self._last_get_departure_timers < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
                 # Update the departure timers only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
@@ -4352,7 +4359,7 @@ class Vehicle:
             if self._requests.get('departureprofile', {}).get('id', None):
                 openRequest= self._requests.get('departureprofile', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                 self._requests.get('departureprofile', {}).pop('id')
             if (self._last_get_departure_profiles < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
                 # Update the departure profiles only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
@@ -4367,7 +4374,7 @@ class Vehicle:
             if self._requests.get('climatisationtimer', {}).get('id', None):
                 openRequest= self._requests.get('climatisationtimer', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('climatisationtimer', {}).pop('id')
             if (self._last_get_climatisation_timers < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
                 # Update the climatisation timers only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
@@ -4384,13 +4391,13 @@ class Vehicle:
             if self._requests.get('batterycharge', {}).get('id', None):
                 openRequest= self._requests.get('batterycharge', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('batterycharge', {}).pop('id')
                     if self._requests.get('batterycharge', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['batterycharge']['status'] = 'Request failed'
                             self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
-                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
+                            self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['batterycharge']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('charging') # clean the charging elements of self._wantedStateOfProperty
@@ -4409,13 +4416,13 @@ class Vehicle:
             if self._requests.get('climatisation', {}).get('id', None):
                 openRequest= self._requests.get('climatisation', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('climatisation', {}).pop('id')
                     if self._requests.get('climatisation', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['climatisation']['status'] = 'Request failed'
                             self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
-                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
+                            self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['climatisation']['status'] = 'Request executed'
                     self.cleanWantedStateOfProperty('climatisation') # clean the climatisation elements of self._wantedStateOfProperty
@@ -4449,13 +4456,13 @@ class Vehicle:
             if self._requests.get('refresh', {}).get('id', None):
                 openRequest= self._requests.get('refresh', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('refresh', {}).pop('id')
                     if self._requests.get('refresh', {}).get('status','') == 'Request accepted':
                         if ('failed' in type) or ('error' in type):
                             self._requests['refresh']['status'] = 'Request failed'
                             self._haNotification = f"PyCupra received push notification '{type}', which means, that a recent request, you made, failed."
-                            self._LOGGER.debug(f'Forwarding information about the failed request to homeassistant-pycupra.')
+                            self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['refresh']['status'] = 'Request executed'
             if (self._last_full_update < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
@@ -4480,7 +4487,7 @@ class Vehicle:
             if self._requests.get('refresh', {}).get('id', None):
                 openRequest= self._requests.get('refresh', {}).get('id', None)
                 if openRequest == requestId:
-                    self._LOGGER.debug(f'The notification closes an open request initiated by PyCupra.')
+                    self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
                     self._requests.get('refresh', {}).pop('id')
             # Nothing else to do
         elif type in ('vehicle-connection-state-offline'):

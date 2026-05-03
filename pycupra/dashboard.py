@@ -2227,7 +2227,7 @@ def create_instruments():
             icon="mdi:car-parking-lights"
         ),
         BinarySensor(
-            attr="door_locked",
+            attr="doors_locked",
             name="Doors locked",
             device_class="lock",
             reverse_state=False

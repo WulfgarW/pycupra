@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Communicate with the My Cupra portal."""
-"""First fork from https://github.com/robinostlund/volkswagencarnet where it was modified to support also Skoda Connect"""
-"""Then forked from https://github.com/lendy007/skodaconnect for adaptation to Seat Connect"""
-"""Then forked from https://github.com/Farfar/seatconnect for adaptation to the new API of My Cupra and My Seat"""
+
+#Communicate with the My Cupra portal.
+#First fork from https://github.com/robinostlund/volkswagencarnet where it was modified to support also Skoda Connect
+#Then forked from https://github.com/lendy007/skodaconnect for adaptation to Seat Connect
+#Then forked from https://github.com/Farfar/seatconnect for adaptation to the new API of My Cupra and My Seat
 import re
 import os
 import json
@@ -21,14 +22,14 @@ import csv
 
 from PIL import Image
 from io import BytesIO
-from sys import version_info, argv
-from datetime import timedelta, datetime, timezone
-from urllib.parse import urljoin, parse_qs, urlparse, urlencode
+from sys import version_info
+from datetime import timedelta, datetime
+from urllib.parse import parse_qs, urlparse
 from json import dumps as to_json
 from jwt.exceptions import ExpiredSignatureError
 import aiohttp
 from bs4 import BeautifulSoup
-from base64 import b64decode, b64encode, urlsafe_b64decode, urlsafe_b64encode
+from base64 import b64encode, urlsafe_b64encode
 from .utilities import json_loads
 from .vehicle import Vehicle
 from .exceptions import (
@@ -41,15 +42,12 @@ from .exceptions import (
     PyCupraMarketingConsentException,
     PyCupraThrottledException,
     PyCupraLoginFailedException,
-    PyCupraInvalidRequestException,
-    PyCupraRequestInProgressException,
-    PyCupraServiceUnavailable
 )
 
 from requests_oauthlib import OAuth2Session
-from oauthlib.oauth2.rfc6749.parameters import parse_authorization_code_response, parse_token_response, prepare_grant_uri
+#from oauthlib.oauth2.rfc6749.parameters import parse_authorization_code_response, parse_token_response, prepare_grant_uri
 
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientTimeout
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT, METH_DELETE
 
 from .const import (
@@ -57,9 +55,7 @@ from .const import (
     HEADERS_AUTH,
     TOKEN_HEADERS,
     BASE_SESSION,
-    BASE_AUTH,
     CLIENT_LIST,
-    XCLIENT_ID,
     AUTH_OIDCONFIG,
     AUTH_TOKEN,
     AUTH_TOKENKEYS,
@@ -69,7 +65,6 @@ from .const import (
     API_PERSONAL_DATA,
     API_USER_INFO,
     API_CONNECTION,
-    API_PSP,
     API_VEHICLES,
     API_MYCAR,
     API_RANGES,
@@ -90,9 +85,6 @@ from .const import (
     #API_CAPABILITIES_MANAGEMENT,
     API_MAINTENANCE,
     API_WARNINGLIGHTS,
-    API_MEASUREMENTS,
-    API_RELATION_STATUS,
-    API_INVITATIONS,
     #API_ACTION,
     API_ACTIONS,
     API_IMAGE,
@@ -214,7 +206,7 @@ class Connection:
                 return True
             self._LOGGER.info('No token file present. readTokenFile() returns False.')
             return False
-        except:
+        except Exception:
             self._LOGGER.warning('readTokenFile() not successful.')
             return False
 
@@ -238,7 +230,7 @@ class Connection:
             return False
         try:
             os.remove(self._tokenFile)
-            self._LOGGER.info(f'Deleted token file.')
+            self._LOGGER.info('Deleted token file.')
             return True
         except Exception as e:
             self._LOGGER.warning(f'deleteTokenFile() not successful. Error: {e}')
@@ -353,7 +345,7 @@ class Connection:
                             error = parse_qs(urlparse(ref).query).get('error_description', '')[0]
                             self._LOGGER.info(f'Unable to login, {error}')
                         else:
-                            self._LOGGER.info(f'Unable to login.')
+                            self._LOGGER.info('Unable to login.')
                         raise PyCupraException(error)
                     else:
                         if self._session_fulldebug:
@@ -364,7 +356,7 @@ class Connection:
                             allow_redirects=False
                         )
                 else:
-                    self._LOGGER.warning(f'Unable to fetch authorization endpoint')
+                    self._LOGGER.warning('Unable to fetch authorization endpoint')
                     raise PyCupraException('Missing "location" header')
             except (PyCupraException):
                 raise
@@ -429,7 +421,7 @@ class Connection:
                         self._LOGGER.debug('Got code: %s' % location)
                     pass
                 else:
-                    self._LOGGER.debug(f'Exception occured while logging in.')
+                    self._LOGGER.debug('Exception occured while logging in.')
                     raise PyCupraLoginFailedException(e)
 
             self._LOGGER.debug('Received authorization code, exchange for tokens.')
@@ -496,7 +488,7 @@ class Connection:
             else:
                 self._LOGGER.warning(f'Token for {client} could not be verified, verification returned {verify}.')
             loop = asyncio.get_running_loop()
-            rt = await loop.run_in_executor(None, self.writeTokenFile, client)
+            await loop.run_in_executor(None, self.writeTokenFile, client)
         except (PyCupraEULAException):
             self._LOGGER.warning('Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again')
             raise
@@ -593,11 +585,11 @@ class Connection:
         # POST password
         self._session_auth_headers[client]['Referer'] = pe_url
         self._session_auth_headers[client]['Origin'] = authissuer
-        self._LOGGER.debug(f"Finalizing login")
+        self._LOGGER.debug("Finalizing login")
 
         client_id = CLIENT_LIST[client].get('CLIENT_ID')
         pp_url = authissuer+'/'+post_action
-        if not 'signin-service' in pp_url or not client_id in pp_url:
+        if 'signin-service' not in pp_url or client_id not in pp_url:
             pp_url = authissuer+'/signin-service/v1/'+client_id+"/"+post_action
 
         if self._session_fulldebug:
@@ -623,7 +615,7 @@ class Connection:
 
     async def logout(self) -> None:
         """Logout, revoke tokens."""
-        self._LOGGER.info(f'Initiating logout.')
+        self._LOGGER.info('Initiating logout.')
         self._session_headers.pop('Authorization', None)
         self._session_headers.pop('tokentype', None)
         self._session_headers['Content-Type'] = 'application/x-www-form-urlencoded'
@@ -655,7 +647,7 @@ class Connection:
             }
             if error.status == 401:
                 self._LOGGER.warning('Received "Unauthorized" while fetching data. This can occur if tokens expired or refresh service is unavailable.')
-                if self._error401 != True:
+                if not self._error401:
                     self._error401 = True
                     rc=await self.refresh_token(self._session_auth_brand)
                     if rc:
@@ -706,7 +698,7 @@ class Connection:
             if datetime.now(tz=None).date() != self._sessionRequestTimestamp.date():
                 # A new day has begun. Store _sessionRequestCounter in history and reset timestamp and counter
                 self._sessionRequestCounterHistory[self._sessionRequestTimestamp.strftime('%Y-%m-%d')]=self._sessionRequestCounter
-                self._LOGGER.info(f'History of the number of API calls:')
+                self._LOGGER.info('History of the number of API calls:')
                 for key, value in self._sessionRequestCounterHistory.items():
                     self._LOGGER.info(f'   Date: {key}: {value} API calls')
 
@@ -786,7 +778,7 @@ class Connection:
             if error.status == 401:
                 self._LOGGER.error('Unauthorized')
             elif error.status == 400:
-                self._LOGGER.error(f'Bad request')
+                self._LOGGER.error('Bad request')
             elif error.status == 429:
                 self._LOGGER.warning('Too many requests. Further requests can only be made after the end of next trip in order to protect your vehicles battery.')
                 return 429
@@ -823,7 +815,7 @@ class Connection:
             return True
         except (IOError, OSError, LookupError, Exception) as error:
             self._LOGGER.warning(f'An error was encountered during interaction with the API: {error}')
-        except:
+        except Exception:
             raise
         return False
 
@@ -838,7 +830,7 @@ class Connection:
                 userData= response
             else:
                 self._LOGGER.debug('Could not retrieve profile information')
-        except:
+        except Exception:
             self._LOGGER.debug('Could not fetch personal information.')
 
         try:
@@ -847,7 +839,7 @@ class Connection:
                 userData = response
             else:
                 self._LOGGER.debug('Could not retrieve profile information')
-        except:
+        except Exception:
             self._LOGGER.debug('Could not fetch personal information.')
         self._userData=userData
         return userData
@@ -879,7 +871,7 @@ class Connection:
                     self._LOGGER.debug('User consent is valid, no missing information for profile')
             else:
                 self._LOGGER.debug('Could not retrieve consent information')"""
-        except:
+        except Exception:
             self._LOGGER.debug('Could not fetch consent information. If problems are encountered please visit the web portal first and make sure that no new terms and conditions need to be accepted.')
 
         # Fetch vehicles
@@ -898,9 +890,9 @@ class Connection:
                     else:
                         self._LOGGER.warning(f"Failed to aquire capabilities information about vehicle with VIN ending on {vin[-4:]}.")
                         if vehicle.get('capabilities',None) is not None:
-                            self._LOGGER.warning(f"Keeping the old capability information.")
+                            self._LOGGER.warning("Keeping the old capability information.")
                         else:
-                            self._LOGGER.warning(f"Initialising vehicle without capabilities.")
+                            self._LOGGER.warning("Initialising vehicle without capabilities.")
                             vehicle["capabilities"]=[]
                     data = await self.getConnectivities(vin, APP_URI)
                     if isinstance(data, dict):
@@ -912,7 +904,7 @@ class Connection:
                         # Initialising vehicle["connectivities"]
                         vehicle["connectivities"]={'remote-availability' : 'unknown'}
                     api_vehicles.append(vehicle)
-        except:
+        except Exception:
             raise
 
         # If neither API returns any vehicles, raise an error
@@ -932,7 +924,7 @@ class Connection:
 
                     properties={}
                     for key in vehicle:
-                        if not(key in {'capabilities', 'vin', 'specifications', 'connectivities'}):
+                        if key not in {'capabilities', 'vin', 'specifications', 'connectivities'}:
                             properties[key]=vehicle.get(key)
 
                     newVehicle = {
@@ -944,7 +936,7 @@ class Connection:
                         'logPrefix': self._logPrefix,
                     }
                     # Check if object already exist
-                    self._LOGGER.debug(f'Check if vehicle exists')
+                    self._LOGGER.debug('Check if vehicle exists')
                     if self.vehicle(vin) is not None:
                         self._LOGGER.debug(self.anonymise(f'Vehicle with VIN number {vin} already exist.'))
                         car = Vehicle(self, newVehicle)
@@ -955,7 +947,7 @@ class Connection:
                     else:
                         self._LOGGER.debug(self.anonymise(f'Adding vehicle {vin}, with connectivities: {vehicle.get('connectivities')}'))
                         self._vehicles.append(Vehicle(self, newVehicle))
-            except:
+            except Exception:
                 raise PyCupraLoginFailedException("Unable to fetch associated vehicles for account")
 
         # Update data for all vehicles
@@ -973,14 +965,14 @@ class Connection:
             # Try old pyJWT syntax first
             try:
                 subject = jwt.decode(atoken, verify=False).get('sub', None)
-            except:
+            except Exception:
                 subject = None
             # Try new pyJWT syntax if old fails
             if subject is None:
                 try:
                     exp = jwt.decode(atoken, options={'verify_signature': False}).get('sub', None)
                     subject = exp
-                except:
+                except Exception:
                     raise Exception("Could not extract sub attribute from token")
 
             data = {'scopeId': 'commonMandatoryFields'}
@@ -1162,7 +1154,7 @@ class Connection:
                                     byteIO = BytesIO()
                                     im1.save(byteIO, format='PNG')
                                     await loop.run_in_executor(None, self.writeImageFile, pos+'_cropped',byteIO.getvalue(), images, vin)
-                                except:
+                                except Exception:
                                     self._LOGGER.warning('Cropping front image to square format failed.')
  
                     self._LOGGER.debug('Read images from web site and wrote them to file.')
@@ -1170,9 +1162,9 @@ class Connection:
                     return response
                 else:
                     self._LOGGER.debug(f'Could not fetch Model image URL, request returned with status code {response.status_code}')
-            except:
+            except Exception:
                 self._LOGGER.debug('Could not fetch Model image URL')
-        except:
+        except Exception:
             self._LOGGER.debug('Could not fetch Model image URL, message signing failed.')
         return None
 
@@ -1225,7 +1217,7 @@ class Connection:
             elif response.get('status_code', {}):
                 self._LOGGER.warning(f'Could not fetch trip statistics, HTTP status code: {response.get("status_code")}')
             else:
-                self._LOGGER.info(f'Unhandled error while trying to fetch trip statistics')
+                self._LOGGER.info('Unhandled error while trying to fetch trip statistics')
             if data.get('tripstatistics',{}) != {}:
                 return data
         except Exception as error:
@@ -1253,9 +1245,9 @@ class Connection:
                 elif response.get('status_code', {}):
                     self._LOGGER.warning(f'Could not fetch trip statistics, HTTP status code: {response.get("status_code")}')
                 else:
-                    self._LOGGER.info(f'Unhandled error while trying to fetch trip statistics')
+                    self._LOGGER.info('Unhandled error while trying to fetch trip statistics')
             else:
-                self._LOGGER.info(f'Vehicle does not support cyclic trips.')
+                self._LOGGER.info('Vehicle does not support cyclic trips.')
             #dataType='SHORT'
             if self._session_tripStatisticsStartDate is None:
                 # If connection was not initialised with parameter tripStatisticsStartDate, then 330 day is used for the CYCLIC trips and 25 days for the SHORT trips
@@ -1268,7 +1260,7 @@ class Connection:
             elif response.get('status_code', {}):
                 self._LOGGER.warning(f'Could not fetch trip statistics, HTTP status code: {response.get("status_code")}')
             else:
-                self._LOGGER.info(f'Unhandled error while trying to fetch trip statistics')
+                self._LOGGER.info('Unhandled error while trying to fetch trip statistics')
             if data.get('tripstatistics',{}) != {}:
                 data['tripstatistics']['dailySums'] = convertTripStatisticsData(data.get('tripstatistics',{}).get('short',{}))
                 data['tripstatistics']['monthlySums'] = convertTripStatisticsData(data.get('tripstatistics',{}).get('cyclic',{}))
@@ -1304,7 +1296,7 @@ class Connection:
                 return data
             elif response.get('status_code', {}):
                 if response.get('status_code', 0) == 204:
-                    self._LOGGER.debug(f'Seems car is moving, HTTP 204 received from position')
+                    self._LOGGER.debug('Seems car is moving, HTTP 204 received from position')
                     data = {
                         'isMoving': True,
                         #'rate_limit_remaining': 15
@@ -1447,11 +1439,11 @@ class Connection:
             if chargingStatus != {}:
                 data['charging']['status'] = chargingStatus
             else:
-                self._LOGGER.warning(f'getCharger() got no valid data for charging status')
+                self._LOGGER.warning('getCharger() got no valid data for charging status')
             if chargingInfo != {}:
                 data['charging']['info'] = chargingInfo
             else:
-                self._LOGGER.warning(f'getCharger() got no valid data for charging info')
+                self._LOGGER.warning('getCharger() got no valid data for charging info')
             #if chargingModes != {}:
             #    data['charging']['modes'] = chargingModes
             #else:
@@ -1460,7 +1452,7 @@ class Connection:
                 data['charging']['profiles'] = chargingProfiles
             else:
                 if chargingProfilesActivated:
-                    self._LOGGER.warning(f'getCharger() got no valid data for charging profiles')
+                    self._LOGGER.warning('getCharger() got no valid data for charging profiles')
             return data
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch charger, error: {error}')
@@ -1470,7 +1462,7 @@ class Connection:
         """Get parking heater data."""
         await self.set_token(self._session_auth_brand)
         try:
-            response = await self.get(f"f'URL_not_yet_known'")
+            response = await self.get("f'URL_not_yet_known'")
             if response.get('statusResponse', {}):
                 data = {'heating': response.get('statusResponse', {})}
                 return data
@@ -1500,7 +1492,7 @@ class Connection:
             url = endpoint 
             response = await self._data_call(url, **data)
             if not response:
-                raise PyCupraException(f'Invalid or no response for endpoint {endpoint}')
+                raise PyCupraException(f'Invalid or no response for endpoint {self.anonymise(endpoint)}')
             elif response == 429:
                 raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
@@ -1522,7 +1514,7 @@ class Connection:
                 if response.get('rate_limit_remaining', False):
                     data['rate_limit_remaining'] = response.get('rate_limit_remaining', None)
                 return data
-        except:
+        except Exception:
             raise
         return False
 
@@ -1533,7 +1525,7 @@ class Connection:
             url = endpoint 
             response = await self._request(METH_PUT,url, **data)
             if not response:
-                raise PyCupraException(f'Invalid or no response for endpoint {endpoint}')
+                raise PyCupraException(f'Invalid or no response for endpoint {self.anonymise(endpoint)}')
             elif response == 429:
                 raise PyCupraThrottledException('Action rate limit reached. Start the car to reset the action limit')
             else:
@@ -1555,7 +1547,7 @@ class Connection:
                 if response.get('rate_limit_remaining', False):
                     data['rate_limit_remaining'] = response.get('rate_limit_remaining', None)
                 return data
-        except:
+        except Exception:
             raise
         return False
 
@@ -1584,15 +1576,15 @@ class Connection:
                 self._LOGGER.debug(f'Subscription {id} successfully deleted.')
                 return response
             else:
-                self._LOGGER.debug(f'API did not successfully delete subscription.')
-                raise PyCupraException(f'Invalid or no response for endpoint {url}')
+                self._LOGGER.debug('API did not successfully delete subscription.')
+                raise PyCupraException(f'Invalid or no response for endpoint {self.anonymise(url)}')
                 return response
         except aiohttp.client_exceptions.ClientResponseError as error:
             self._LOGGER.debug(f'Request failed. Id: {id}, HTTP request headers: {self._session_headers}')
             if error.status == 401:
                 self._LOGGER.error('Unauthorized')
             elif error.status == 400:
-                self._LOGGER.error(f'Bad request')
+                self._LOGGER.error('Bad request')
             elif error.status == 429:
                 self._LOGGER.warning('Too many requests. Further requests can only be made after the end of next trip in order to protect your vehicles battery.')
                 return 429
@@ -1660,7 +1652,7 @@ class Connection:
             else: # Unknown modes
                 self._LOGGER.error(f'Unbekannter setClimater mode: {mode}. Command ignored')
                 raise PyCupraException(f"Invalid mode '{mode}' for setClimater")
-        except:
+        except Exception:
             raise
         return False
 
@@ -1670,14 +1662,14 @@ class Connection:
             capability = 'climatisation'
             url= (API_REQUESTS+'/timers').format(baseurl=baseurl, vin=vin, capability=capability)
             return await self._setViaPUTtoAPI(url, json = data)
-        except:
+        except Exception:
             raise
         return False
 
     async def setAuxiliaryheatingtimer(self, vin, baseurl, data, spin) -> dict | bool:
         """Set climatisation timers."""
         try:
-            capability = 'auxiliary-heating'
+            #capability = 'auxiliary-heating'
             url= (API_AUXILIARYHEATING+'/timers').format(baseurl=baseurl, vin=vin)
             
             # Fetch security token 
@@ -1689,7 +1681,7 @@ class Connection:
             self._session_headers.pop('SecToken')
             
             return response
-        except:
+        except Exception:
             raise
         return False
 
@@ -1701,7 +1693,7 @@ class Connection:
                 if data.get('minSocPercentage',False):
                     url=url+'/settings'
             return await self._setViaAPI(url, json = data)
-        except:
+        except Exception:
             raise
         return False
 
@@ -1713,7 +1705,7 @@ class Connection:
                 #if data.get('minSocPercentage',False):
                 #    url=url+'/settings'
             return await self._setViaPUTtoAPI(url, json = data)
-        except:
+        except Exception:
             raise
         return False
 
@@ -1728,15 +1720,15 @@ class Connection:
                 self._LOGGER.debug(f'Destination {data[0]} successfully sent to API.')
                 return response
             else:
-                self._LOGGER.debug(f'API did not successfully receive destination.')
-                raise PyCupraException(f'Invalid or no response for endpoint {url}')
+                self._LOGGER.debug('API did not successfully receive destination.')
+                raise PyCupraException(f'Invalid or no response for endpoint {self.anonymise(url)}')
                 return response
         except aiohttp.client_exceptions.ClientResponseError as error:
             self._LOGGER.debug(f'Request failed. Data: {data}, HTTP request headers: {self._session_headers}')
             if error.status == 401:
                 self._LOGGER.error('Unauthorized')
             elif error.status == 400:
-                self._LOGGER.error(f'Bad request')
+                self._LOGGER.error('Bad request')
             elif error.status == 429:
                 self._LOGGER.warning('Too many requests. Further requests can only be made after the end of next trip in order to protect your vehicles battery.')
                 return 429
@@ -1769,7 +1761,7 @@ class Connection:
 
             return response
 
-        except:
+        except Exception:
             self._session_headers.pop('SecToken')
             raise
         return False
@@ -1780,14 +1772,14 @@ class Connection:
             # Fetch security token 
             self._session_headers['SecToken']= await self.get_sec_token(spin=spin, baseurl=baseurl)
 
-            response = await self._setViaAPI(f"f'url_not_yet_known'", json = data)
+            response = await self._setViaAPI("f'url_not_yet_known'", json = data)
 
             # Clean up headers
             self._session_headers.pop('SecToken')
 
             return response
 
-        except:
+        except Exception:
             self._session_headers.pop('SecToken')
             raise
         return False
@@ -1804,13 +1796,13 @@ class Connection:
             # Try old pyJWT syntax first
             try:
                 exp = jwt.decode(token, verify=False).get('exp', None)
-            except:
+            except Exception:
                 exp = None
             # Try new pyJWT syntax if old fails
             if exp is None:
                 try:
                     exp = jwt.decode(token, options={'verify_signature': False}).get('exp', None)
-                except:
+                except Exception:
                     raise Exception("Could not extract exp attribute")
 
             expires = datetime.fromtimestamp(int(exp))
@@ -1832,13 +1824,13 @@ class Connection:
             # Try old pyJWT syntax first
             try:
                 aud = jwt.decode(token, verify=False).get('aud', None)
-            except:
+            except Exception:
                 aud = None
             # Try new pyJWT syntax if old fails
             if aud is None:
                 try:
                     aud = jwt.decode(token, options={'verify_signature': False}).get('aud', None)
-                except:
+                except Exception:
                     raise Exception("Could not extract exp attribute")
 
             if not isinstance(aud, str):
@@ -1867,7 +1859,7 @@ class Connection:
             if self._session_fulldebug:
                 try:
                     self._LOGGER.debug(f'Token Key ID is {token_kid}, match from public keys: {keys["keys"][token_kid]}')
-                except:
+                except Exception:
                     pass
             pubkey = pubkeys[token_kid]
 
@@ -1911,7 +1903,7 @@ class Connection:
                     headers=self._session_token_headers.get(client),
                     data = body,
                 )
-            except:
+            except Exception:
                 raise
 
             if response.status == 200:
@@ -1932,11 +1924,11 @@ class Connection:
                 else:
                     self._LOGGER.debug(f'API token refresh failed. Error: {error}')
             else:
-                resp = await response.json()
+                #resp = await response.json()
                 self._LOGGER.warning(f'Something went wrong when refreshing tokens for "{client}".')
                 self._LOGGER.debug(f'Headers: {TOKEN_HEADERS.get(client)}')
                 self._LOGGER.debug(f'Request Body: {body}')
-                self._LOGGER.warning(f'Something went wrong when refreshing VW-Group API tokens.')
+                self._LOGGER.warning('Something went wrong when refreshing VW-Group API tokens.')
         except Exception as error:
             self._LOGGER.warning(f'Could not refresh tokens: {error}')
         return False
@@ -1961,7 +1953,7 @@ class Connection:
                     # If authorization wasn't successful
                     if result is not True:
                         raise PyCupraAuthenticationException(f'Failed to authorize client {client}')
-                except:
+                except Exception:
                     raise
             try:
                 # Validate access token for client, refresh if validation fails
@@ -1977,11 +1969,11 @@ class Connection:
                 else:
                     try:
                         self._LOGGER.debug(f'Access token for "{client}" is valid until {valid.strftime("%Y-%m-%d %H:%M:%S")}')
-                    except:
+                    except Exception:
                         pass
                 # Assign token to authorization header
                 self._session_headers['Authorization'] = 'Bearer ' + self._session_tokens[client]['access_token']
-            except:
+            except Exception:
                 raise PyCupraException(f'Failed to set token for "{client}"')
             return True
 
@@ -2006,11 +1998,11 @@ class Connection:
                         data['speed']=float(row.get('speed','0.0'))
                         data['comment']=row.get('comment','')
                         if sumType == SUMTYPE_MONTHLY:
-                            if self.monthlyTripData.get(vin,None)==None:
+                            if self.monthlyTripData.get(vin,None) is None:
                                 self.monthlyTripData[vin]={}
                             self.monthlyTripData[vin][(data.get('date','2000-01-01'))] = data
                         else:
-                            if self.dailyTripData.get(vin,None)==None:
+                            if self.dailyTripData.get(vin,None) is None:
                                 self.dailyTripData[vin]={}
                             self.dailyTripData[vin][(data.get('date','2000-01-01'))] = data
                     csvfile.close()
@@ -2096,7 +2088,7 @@ class Connection:
                     updated = True
                 else:
                     if index == len(listOfDailySums) -1 and latestMileage > self.dailyTripData[vin][entryDate]['endMileage']:
-                        self._LOGGER.debug(f'Corrected end mileage for latest daily sum.')
+                        self._LOGGER.debug('Corrected end mileage for latest daily sum.')
                         self.dailyTripData[vin][entryDate]['endMileage'] = latestMileage
                         updated = True
                     #pass #self._LOGGER.debug(f'Daily sum trip data already present for {entryDate} and not shorter than the new data. Keeping it.')
@@ -2114,7 +2106,7 @@ class Connection:
                 if backwardCalculatedMileage != latestMileage:
                     self.dailyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because it was not already present in daily sum history.'
                 if backwardCalculatedMileage < 1:
-                    self._LOGGER.debug(f'Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
+                    self._LOGGER.debug('Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
                     self.dailyTripData[vin][entryDate]['comment'] = 'Mileage is inplausibly small'
                 updated = True
             if currentDaySumElement.get('distanceDriven',0.0)>0.0:
@@ -2156,7 +2148,7 @@ class Connection:
                     updated = True
                 else:
                     if index == len(listOfMonthlySums) -1 and latestMileage > self.monthlyTripData[vin][entryDate]['endMileage']:
-                        self._LOGGER.debug(f'Corrected end mileage for latest monthly sum.')
+                        self._LOGGER.debug('Corrected end mileage for latest monthly sum.')
                         self.monthlyTripData[vin][entryDate]['endMileage'] = latestMileage
                         updated = True
                     #pass #self._LOGGER.debug(f'Monthly sum trip data already present for {entryDate} and not shorter than the new data. Keeping it.')
@@ -2174,7 +2166,7 @@ class Connection:
                 if backwardCalculatedMileage != latestMileage:
                     self.monthlyTripData[vin][entryDate]['comment'] = 'End mileage calculated backwards for an older date, because it was not already present in daily sum history.'
                 if backwardCalculatedMileage < 1:
-                    self._LOGGER.debug(f'Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
+                    self._LOGGER.debug('Calculated mileage is inplausibly small. Perhaps a problem with the odometer sensor.')
                     self.monthlyTripData[vin][entryDate]['comment'] = 'Mileage is inplausibly small'
                 updated = True
             if currentMonthSumElement.get('distanceDriven',0.0)>0.0:
@@ -2201,8 +2193,8 @@ class Connection:
 
     def hash_spin(self, challenge, spin) -> str:
         """Convert SPIN and challenge to hash."""
-        spinArray = bytearray.fromhex(spin);
-        byteChallenge = bytearray.fromhex(challenge);
+        spinArray = bytearray.fromhex(spin)
+        byteChallenge = bytearray.fromhex(challenge)
         spinArray.extend(byteChallenge)
         return hashlib.sha512(spinArray).hexdigest()
 

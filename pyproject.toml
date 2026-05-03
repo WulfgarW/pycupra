@@ -21,7 +21,7 @@ dependencies = [
     "xmltodict",
     "pandas",
     "pillow",
-    "protobuf",
+    "protobuf>6.30.1",
     "http-ece",
     "requests-oauthlib"
 ]

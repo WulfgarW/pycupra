@@ -16,6 +16,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+globalFirebaseCredentialsFileName = ''
 
 class Firebase():
     def __init__(self, logPrefix=None):
@@ -31,6 +32,8 @@ class Firebase():
         try:
             loop = asyncio.get_running_loop()
             credentials = await loop.run_in_executor(None, readFCMCredsFile, firebaseCredentialsFileName)
+            global globalFirebaseCredentialsFileName 
+            globalFirebaseCredentialsFileName = firebaseCredentialsFileName
 
             fcm_project_id=FCM_PROJECT_ID
             fcm_app_id=FCM_APP_ID[brand]
@@ -40,8 +43,8 @@ class Firebase():
             fcmMessageSenderId= 'fxpWQ_'+fcmMessageSenderId
 
             fcm_config = FcmRegisterConfig(fcm_project_id, fcm_app_id, fcm_api_key, fcmMessageSenderId)
-            self._pushClient = FcmPushClient(onNotificationFunc, fcm_config, credentials, onFCMCredentialsUpdated)
-            fcm_token = await self._pushClient.checkin_or_register(firebaseCredentialsFileName)
+            self._pushClient = FcmPushClient(onNotificationFunc, fcm_config, credentials, syncOnFCMCredentialsUpdated)
+            fcm_token = await self._pushClient.checkin_or_register() #(firebaseCredentialsFileName)
             self._LOGGER.debug(f'Firebase.checkin_or_register() returned a token:{fcm_token}')
             await self._pushClient.start()
             await asyncio.sleep(5)
@@ -85,10 +88,15 @@ def writeFCMCredsFile(creds, firebaseCredentialsFileName) -> None:
         f.close()
     except Exception as e:
         _LOGGER.warning(f'writeFCMCredsFile() not successful. Error: {e}')
-    
-async def onFCMCredentialsUpdated(creds: dict[str, Any], firebaseCredentialsFileName: str) -> None:
+
+def syncOnFCMCredentialsUpdated(creds: dict[str, Any]) -> None:
+    asyncio.get_event_loop().create_task(onFCMCredentialsUpdated(creds))
+
+
+async def onFCMCredentialsUpdated(creds: dict[str, Any]) -> None:
     """ Is called from firebase-messaging package """
+    global globalFirebaseCredentialsFileName
     loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, writeFCMCredsFile, creds, firebaseCredentialsFileName)
-    #writeFCMCredsFile(creds, firebaseCredentialsFileName)
+    await loop.run_in_executor(None, writeFCMCredsFile, creds, globalFirebaseCredentialsFileName)
+    #writeFCMCredsFile(creds, globalFirebaseCredentialsFileName)
     
