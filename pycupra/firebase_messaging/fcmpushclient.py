@@ -701,13 +701,14 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                             )
                         ):
                             if (counter > 0) and (counter % 10 == 0):
-                                _logger.debug(f"Listen is waiting for reset to \
-                                    succeed. Already slept for {counter}s, and \
-                                    run state is still {self.run_state}.")
+                                _logger.debug("Listen is waiting for reset to "
+                                f"succeed. Already slept for {counter}s, and "
+                                f"run state is still {self.run_state}.")
                             counter = counter + 1
                             await asyncio.sleep(1)
-                        _logger.info(f"In total listen waited {counter}s for reset \
-                            to succeed: run state is now {self.run_state}.")
+                        _logger.info(
+                            f"In total listen waited {counter}s for reset "
+                            f"to succeed: run state is now {self.run_state}.")
                     elif msg := await self._receive_msg():
                         await self._handle_message(msg)
 
