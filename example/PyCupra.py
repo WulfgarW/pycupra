@@ -91,6 +91,7 @@ RESOURCES = [
 		"door_closed_right_back",
 		"door_closed_right_front",
 		"door_locked",
+		"doors_locked",
 		"electric_climatisation",
 		"electric_range",
 		"energy_flow",

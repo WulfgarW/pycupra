@@ -1720,6 +1720,11 @@ class Vehicle:
                     'status': response.get('state', 'Unknown'),
                     'id': response.get('id', 0),
                 }
+                if action == 'lock':
+                    self.setWantedStateOfProperty('lock', 'door_lock', value=True)
+                else:
+                    self.setWantedStateOfProperty('lock', 'door_lock', value=False)
+
                 # if firebaseStatus is FIREBASE_STATUS_ACTIVATED, the request is assumed successful. Waiting for push notification before rereading status
                 if self.firebaseStatus == FIREBASE_STATUS_ACTIVATED:
                     self._LOGGER.debug('POST request for lock/unlock assumed successful. Waiting for push notification')
@@ -1742,6 +1747,7 @@ class Vehicle:
                     self._requests.get('lock', {}).pop('id')
                     if self._requests.get('lock', {}).get('status','') == 'Request accepted':
                         self._requests['lock']['status'] = 'Request executed'
+                    self.cleanWantedStateOfProperty('lock') # clean the lock elements of self._wantedStateOfProperty
                     return True
                 self._LOGGER.error('Response to POST request seemed successful but the lock status did not change as expected.')
                 return False

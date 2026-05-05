@@ -530,6 +530,10 @@ class DoorLock(Instrument):
 
     @property
     def state(self):
+        if self.vehicle._requests.get('lock', {}).get('id', False):
+            self._LOGGER.debug('A lock request is active. Setting the door lock state to new wanted state (if present).')
+            if self.vehicle._wantedStateOfProperty.get('lock',{}).get('door_lock', None) is not None:
+                return self.vehicle._wantedStateOfProperty.get('lock',{}).get('door_lock', None)
         return self.vehicle.door_locked
 
     @property
