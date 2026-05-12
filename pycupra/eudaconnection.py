@@ -413,7 +413,7 @@ class EUDAConnection:
             form_data['email'] = self._session_auth_username
             pe_url = authissuer+pageElement.get('action')
         except Exception as e:
-            self._LOGGER.error('Failed to extract user login form.')
+            self._LOGGER.error(f'Failed to extract user login form. Error: {e}')
             raise
 
         # POST email
@@ -462,10 +462,10 @@ class EUDAConnection:
             else:
                 raise PyCupraLoginFailedException('Failed to extract login form data')
             form_data['password'] = self._session_auth_password
-        except (PyCupraLoginFailedException) as e:
+        except (PyCupraLoginFailedException):
             raise
         except Exception as e:
-            raise PyCupraAuthenticationException("Invalid username or service unavailable")
+            raise PyCupraAuthenticationException(f"Invalid username or service unavailable. Error: {e}")
 
         # POST password
         self._session_auth_headers['Referer'] = pe_url

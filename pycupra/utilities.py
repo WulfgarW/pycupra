@@ -1,10 +1,8 @@
-from datetime import date, datetime, timezone
-from base64 import b64encode
-from string import ascii_letters as letters, digits
-from sys import argv
-from os import environ as env
-from os.path import join, dirname, expanduser
-from itertools import product
+from datetime import datetime, timezone
+#from string import ascii_letters as letters, digits
+#from os import environ as env
+#from os.path import join, dirname, expanduser
+#from itertools import product
 import json
 import logging
 import re
@@ -20,7 +18,13 @@ def obj_parser(obj):
     """Parse datetime."""
     for key, val in obj.items():
         try:
-            obj[key]  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
+            if isinstance(val, str):
+                if val in ('false', 'False', 'FALSE'):
+                    obj[key] = False
+                elif val in ('true', 'True', 'TRUE'):
+                    obj[key] = True
+                else:
+                    obj[key]  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
             #dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
             #if dtVal.tzinfo is None:
             #    dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S")

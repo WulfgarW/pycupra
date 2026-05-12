@@ -350,9 +350,12 @@ class ElectricClimatisationClimate(Climate):
                 return self.vehicle._wantedStateOfProperty.get('climatisation',{}).get('settings',{}).get('climatisation_target_temperature', None)
         return self.vehicle.climatisation_target_temperature
 
-    async def set_temperature(self, temperature):
+    async def set_temperature(self, temperature, start = False):
         try:
-            await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+            if start:
+                await self.vehicle.set_climatisation('electric', temperature)
+            else:
+                await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
         except:
             raise
 
@@ -385,9 +388,12 @@ class AuxiliaryClimatisationClimate(Climate):
                 return self.vehicle._wantedStateOfProperty.get('climatisation',{}).get('settings',{}).get('climatisation_target_temperature', None)
         return self.vehicle.climatisation_target_temperature
 
-    async def set_temperature(self, temperature):
+    async def set_temperature(self, temperature, start = False):
         try:
-            await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
+            if start:
+                await self.vehicle.set_climatisation('auxiliary_start', temperature)
+            else:
+                await self.vehicle.set_climatisation_one_setting('targetTemperatureInCelsius' ,temperature)
         except:
             raise
 

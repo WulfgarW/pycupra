@@ -69,6 +69,7 @@ from .const import (
     API_MYCAR,
     API_RANGES,
     API_STATUS,
+    API_LOCK_UNLOCK_ENABLED,
     API_CHARGING,
     API_CHARGING_PROFILES,
     API_POSITION,
@@ -301,11 +302,13 @@ class Connection:
 
             waitTimeExpired = datetime.now(tz=None) + timedelta(seconds= 15)
             global loginInProgress
-            while loginInProgress:
-                await asyncio.sleep(5)
-                if waitTimeExpired < datetime.now(tz=None):
-                    self._LOGGER.warning('Waited about 15 seconds for a concurrent login to finish without success. Assuming, it has ended.')
-                    loginInProgress = False
+            if loginInProgress:
+                while loginInProgress:
+                    await asyncio.sleep(5)
+                    if waitTimeExpired < datetime.now(tz=None):
+                        self._LOGGER.warning('Waited about 15 seconds for a concurrent login to finish without success. Assuming, it has ended.')
+                        loginInProgress = False
+                await asyncio.sleep(2) # Sleep another 2 seconds, after the concurrent login process has finished
             loginInProgress = True
 
             self._LOGGER.debug(f'Starting authorization process for client {client}')
@@ -529,7 +532,7 @@ class Connection:
             form_data['email'] = self._session_auth_username
             pe_url = authissuer+responseSoup.find('form', id='emailPasswordForm').get('action')
         except Exception as e:
-            self._LOGGER.error('Failed to extract user login form.')
+            self._LOGGER.error(f'Failed to extract user login form. Error: {e}')
             raise
 
         # POST email
@@ -577,10 +580,10 @@ class Connection:
             else:
                 raise PyCupraLoginFailedException('Failed to extract login form data')
             form_data['password'] = self._session_auth_password
-        except (PyCupraLoginFailedException) as e:
+        except (PyCupraLoginFailedException):
             raise
         except Exception as e:
-            raise PyCupraAuthenticationException("Invalid username or service unavailable")
+            raise PyCupraAuthenticationException(f"Invalid username or service unavailable. Error: {e}")
 
         # POST password
         self._session_auth_headers[client]['Referer'] = pe_url
@@ -878,12 +881,15 @@ class Connection:
         try:
             legacy_vehicles = await self.get(API_VEHICLES.format(APP_URI=APP_URI, userId=self._user_id))
             if legacy_vehicles.get('vehicles', False):
-                self._LOGGER.debug('Found vehicle(s) associated with account.')
+                self._LOGGER.debug(f'Found {len(legacy_vehicles.get('vehicles', []))} vehicle(s) associated with account.')
                 for vehicle in legacy_vehicles.get('vehicles'):
                     vin = vehicle.get('vin', '')
                     self.addToAnonymisationDict(vin,'[VIN_ANONYMISED]')
-                    response = await self.get(API_CAPABILITIES.format(APP_URI=APP_URI, userId=self._user_id, vin=vin))
-                    if response.get('capabilities', False):
+                    #response = await self.get(API_CAPABILITIES.format(APP_URI=APP_URI, userId=self._user_id, vin=vin))
+                    #if response.get('capabilities', False):
+                    self._LOGGER.debug(f'Reading capability information for vehicle with VIN ending on {vin[-4:]} ({vehicle.get('vehicleNickname', '')}).')
+                    response = await self.getCapabilities(vin=vin, baseurl= APP_URI)
+                    if response:
                         vehicle["capabilities"]=response.get('capabilities')
                         vehicle["platform"] = response.get('platform', 'MOD3')
                         vehicle["capabilitiesQueriedOn"] = response.get('queriedOn', '')
@@ -1004,6 +1010,26 @@ class Connection:
                 self._LOGGER.warning(f'Could not fetch capabilities information, HTTP status code: {response.get("status_code")}')
             else:
                 self._LOGGER.info('Unhandled error while trying to fetch capabilities information')
+            if data == {}:
+                return False
+            response = await self.get(API_LOCK_UNLOCK_ENABLED.format(baseurl=baseurl, vin=vin, enrolmentCountry='DE', userRole='primary'))
+            if response.get('value', None) is not None:
+                #if response.get('value', 'false') == 'true' or response.get('value', False) == True:
+                #    active = True
+                #else:
+                #    active = False
+                #data["capabilities"].append(
+                #    {'id': 'lockUnlockEnabled',
+                #     'active': active}
+                #)
+                data["capabilities"].append(
+                    {'id': 'lockUnlockEnabled',
+                     'active': response.get('value', False)}
+                )
+            elif response.get('status_code', {}):
+                self._LOGGER.warning(f'Could not fetch lock/unlock enablement information, HTTP status code: {response.get("status_code")}')
+            else:
+                self._LOGGER.info('Unhandled error while trying to fetch lock/unlock enablement information')
         except Exception as error:
             self._LOGGER.warning(f'Could not fetch capabilities information, error: {error}')
         if data == {}:

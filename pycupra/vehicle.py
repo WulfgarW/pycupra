@@ -100,6 +100,7 @@ class Vehicle:
             'auxiliaryHeating': {'active': False, 'reason': 'not supported', 'supportsTargetTemperatureInStartAuxiliaryHeating': False},
             'geofence': {'active': False, 'reason': 'not supported'},
             'vehicleWakeUp': {'active': False, 'reason': 'not supported'},
+            'lockUnlockEnabled': {'active': False, 'reason': 'not supported'},
         }
 
         self._last_full_update = datetime.now(tz=None) - timedelta(seconds=1200)
@@ -133,25 +134,30 @@ class Vehicle:
                     if capa.get('status', False):
                         data['reason']=capa.get('status', '')
                     if capa.get('parameters', False):
-                        if capa['parameters'].get('supportsCyclicTrips',False) or capa['parameters'].get('supportsCyclicTrips',False) == 'true':
+                        if capa['parameters'].get('supportsCyclicTrips',False): #or capa['parameters'].get('supportsCyclicTrips',False) == 'true':
                             data['supportsCyclicTrips']=True
-                        if capa['parameters'].get('supportsTargetStateOfCharge',False) or capa['parameters'].get('supportsTargetStateOfCharge',False) == 'true':
+                        if capa['parameters'].get('supportsTargetStateOfCharge',False): #or capa['parameters'].get('supportsTargetStateOfCharge',False) == 'true':
                             data['supportsTargetStateOfCharge']=True
-                        if capa['parameters'].get('supportsSingleTimer',False) or capa['parameters'].get('supportsSingleTimer',False) == 'true':
+                        if capa['parameters'].get('supportsSingleTimer',False): #or capa['parameters'].get('supportsSingleTimer',False) == 'true':
                             data['supportsSingleTimer']=True
-                        if capa['parameters'].get('supportsVehiclePositionedInProfileID',False) or capa['parameters'].get('supportsVehiclePositionedInProfileID',False) == 'true':
+                        if capa['parameters'].get('supportsVehiclePositionedInProfileID',False): #or capa['parameters'].get('supportsVehiclePositionedInProfileID',False) == 'true':
                             data['supportsVehiclePositionedInProfileID']=True
-                        if capa['parameters'].get('supportsTimerClimatisation',False) or capa['parameters'].get('supportsTimerClimatisation',False) == 'true':
+                        if capa['parameters'].get('supportsTimerClimatisation',False): #or capa['parameters'].get('supportsTimerClimatisation',False) == 'true':
                             data['supportsTimerClimatisation']=True
-                        if capa['parameters'].get('supportsOffGridClimatisation',False) or capa['parameters'].get('supportsOffGridClimatisation',False) == 'true':
+                        if capa['parameters'].get('supportsOffGridClimatisation',False): #or capa['parameters'].get('supportsOffGridClimatisation',False) == 'true':
                             data['supportsOffGridClimatisation']=True
-                        if capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False) or capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False) == 'true':
+                        if capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False): #or capa['parameters'].get('supportsStartParallelClimatisationWindowHeating',False) == 'true':
                             data['supportsStartParallelClimatisationWindowHeating']=True
-                        if capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False) or capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False) == 'true':
+                        if capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False): #or capa['parameters'].get('supportsTargetTemperatureInStartAuxiliaryHeating',False) == 'true':
                             data['supportsTargetTemperatureInStartAuxiliaryHeating']=True
                     self._relevantCapabilties[id].update(data)
         else:
             self._LOGGER.warning(f"No capabilities information stored for vehicle with VIN {self.vin}")
+        
+        if self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False) and \
+            not self._relevantCapabilties.get('lockUnlockEnabled', {}).get('active', False):
+            self._LOGGER.warning("TransactionHistoryLockUnlock is active but lockUnlockEnabled not. Please open an issue.")
+
        
         # Get model images
         data = await self.get_modelimageurl()
@@ -182,7 +188,7 @@ class Vehicle:
         if lastQueriedOn < (datetime.now(tz=None) - timedelta(minutes= 29)).astimezone(tz=None) or self.deactivated:
             data = await self._connection.getCapabilities(self.vin, self._apibase)
             if data:
-                self._capabilities = data.get('capabilities',{})
+                self._capabilities = data.get('capabilities',[])
                 self._properties['platform'] = data.get('platform','MOD3')
                 self._properties['capabilitiesQueriedOn'] = data.get('capabilitiesQueriedOn','')
                 self._LOGGER.debug('Successfully updated capabilities information.')
@@ -215,8 +221,10 @@ class Vehicle:
 
                 self.checkForRunningRequests('batterycharge')
                 self.checkForRunningRequests('climatisation')
+                self.checkForRunningRequests('lock')
+                self.checkForRunningRequests('refresh')
                 # to be implemented later, when showing wanted state for switch, while request is running 
-                # {'departuretimer','departureprofile', 'climatisationtimer', 'preheater', 'lock', 'honkandflash'}
+                # {'departuretimer','departureprofile', 'climatisationtimer', 'preheater', 'honkandflash'}
 
                 if self.firebaseStatus == FIREBASE_STATUS_ACTIVATED:
                     # Check, if fcmpushclient still started
@@ -1698,7 +1706,8 @@ class Vehicle:
     async def set_lock(self, action, spin) -> bool:
         """Remote lock and unlock actions."""
         #if not self._services.get('rlu_v1', False):
-        if not self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False):
+        if not self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False) and \
+            not self._relevantCapabilties.get('lockUnlockEnabled', {}).get('active', False):
             self._LOGGER.info('Remote lock/unlock is not supported.')
             raise PyCupraInvalidRequestException('Remote lock/unlock is not supported.')
         if self.checkForRunningRequests('lock'):
@@ -3204,20 +3213,20 @@ class Vehicle:
     @property
     def doors_locked(self) -> bool:
         # LEFT FRONT
-        response = self.attrs.get('status')['doors']['frontLeft'].get('locked', 'false')
-        if response != 'true':
+        response = self.attrs.get('status')['doors']['frontLeft'].get('locked', False)
+        if not response:
             return False
         # LEFT REAR
-        response = self.attrs.get('status')['doors']['rearLeft'].get('locked', 'false')
-        if response != 'true':
+        response = self.attrs.get('status')['doors']['rearLeft'].get('locked', False)
+        if not response:
             return False
         # RIGHT FRONT
-        response = self.attrs.get('status')['doors']['frontRight'].get('locked', 'false')
-        if response != 'true':
+        response = self.attrs.get('status')['doors']['frontRight'].get('locked', False)
+        if not response:
             return False
         # RIGHT REAR
-        response = self.attrs.get('status')['doors']['rearRight'].get('locked', 'false')
-        if response != 'true':
+        response = self.attrs.get('status')['doors']['rearRight'].get('locked', False)
+        if not response:
             return False
 
         return True
@@ -3239,12 +3248,15 @@ class Vehicle:
         if self.is_doors_locked_supported:
             if self._relevantCapabilties.get('transactionHistoryLockUnlock', {}).get('active', False):
                 return True
+            if self._relevantCapabilties.get('lockUnlockEnabled', {}).get('active', False):
+                return True
+            return True
         return False
 
     @property
     def trunk_locked(self):
-        locked=self.attrs.get('status')['trunk'].get('locked', 'false')
-        return True if locked == 'true' else False
+        locked=self.attrs.get('status')['trunk'].get('locked', False)
+        return True if locked else False
 
     @property
     def is_trunk_locked_supported(self) -> bool:
@@ -3258,22 +3270,22 @@ class Vehicle:
     @property
     def hood_closed(self):
         """Return true if hood is closed"""
-        open = self.attrs.get('status')['hood'].get('open', 'false')
-        return True if open == 'false' else False
+        open = self.attrs.get('status')['hood'].get('open', False)
+        return True if not open else False
 
     @property
     def is_hood_closed_supported(self) -> bool:
         """Return true if hood state is supported"""
-        response = 0
         if self.attrs.get('status', False):
             if 'hood' in self.attrs.get('status', {}):
-                response = self.attrs.get('status')['hood'].get('open', 0)
-        return True if response != 0 else False
+                if 'locked' in  self.attrs.get('status')['hood']:
+                    return True
+        return False
 
     @property
     def door_closed_left_front(self):
-        open=self.attrs.get('status')['doors']['frontLeft'].get('open', 'false')
-        return True if open == 'false' else False
+        open=self.attrs.get('status')['doors']['frontLeft'].get('open', False)
+        return True if not open else False
 
     @property
     def is_door_closed_left_front_supported(self) -> bool:
@@ -3286,8 +3298,8 @@ class Vehicle:
 
     @property
     def door_closed_right_front(self):
-        open=self.attrs.get('status')['doors']['frontRight'].get('open', 'false')
-        return True if open == 'false' else False
+        open=self.attrs.get('status')['doors']['frontRight'].get('open', False)
+        return True if not open else False
 
     @property
     def is_door_closed_right_front_supported(self) -> bool:
@@ -3300,8 +3312,8 @@ class Vehicle:
 
     @property
     def door_closed_left_back(self):
-        open=self.attrs.get('status')['doors']['rearLeft'].get('open', 'false')
-        return True if open == 'false' else False
+        open=self.attrs.get('status')['doors']['rearLeft'].get('open', False)
+        return True if not open else False
 
     @property
     def is_door_closed_left_back_supported(self) -> bool:
@@ -3313,8 +3325,8 @@ class Vehicle:
 
     @property
     def door_closed_right_back(self):
-        open=self.attrs.get('status')['doors']['rearRight'].get('open', 'false')
-        return True if open == 'false' else False
+        open=self.attrs.get('status')['doors']['rearRight'].get('open', False)
+        return True if not open else False
 
     @property
     def is_door_closed_right_back_supported(self) -> bool:
@@ -3327,17 +3339,17 @@ class Vehicle:
 
     @property
     def trunk_closed(self):
-        open = self.attrs.get('status')['trunk'].get('open', 'false')
-        return True if open == 'false' else False
+        open = self.attrs.get('status')['trunk'].get('open', False)
+        return True if not open else False
 
     @property
     def is_trunk_closed_supported(self) -> bool:
         """Return true if window state is supported"""
-        response = 0
         if self.attrs.get('status', False):
             if 'trunk' in self.attrs.get('status', {}):
-                response = self.attrs.get('status')['trunk'].get('open', 0)
-        return True if response != 0 else False
+                 if 'open' in self.attrs.get('status')['trunk']:
+                     return True
+        return False
 
     # Climatisation timers
     @property
@@ -4316,7 +4328,7 @@ class Vehicle:
         if 'error' in type:
             self._LOGGER.warning(f'Warning. The newest push notification received (notification id={notification}) of type {type} contains the word error. ')
         self._firebaseLastMessageId = notification # save the id of the last notification
-        if type in ('vehicle-access-locked-successful', 'vehicle-access-unlocked-successful'): # vehicle was locked/unlocked
+        if type in ('vehicle-access-locked-successful', 'vehicle-access-unlocked-successful', 'vehicle-access-locked-error'): # vehicle was locked/unlocked
             if self._requests.get('lock', {}).get('id', None):
                 openRequest= self._requests.get('lock', {}).get('id', None)
                 if openRequest == requestId:
@@ -4329,6 +4341,7 @@ class Vehicle:
                             self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['lock']['status'] = 'Request executed'
+                    self.cleanWantedStateOfProperty('lock') # clean the lock elements of self._wantedStateOfProperty
             if (self._last_get_statusreport < datetime.now(tz=None) - timedelta(seconds= 10)) or openRequest == requestId:
                 # Update the status report only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 #await self.get_statusreport() # Call not needed because it's part of updateCallback(2)
@@ -4471,6 +4484,7 @@ class Vehicle:
                             self._LOGGER.debug('Forwarding information about the failed request to homeassistant-pycupra.')
                         else:
                             self._requests['refresh']['status'] = 'Request executed'
+                    self.cleanWantedStateOfProperty('refresh') # clean the refresh elements of self._wantedStateOfProperty
             if (self._last_full_update < datetime.now(tz=None) - timedelta(seconds= 30)) or openRequest == requestId:
                 # Do full update only if the last one is older than timedelta or if the notification belongs to an open request initiated by PyCupra
                 if self.updateCallback:
@@ -4490,11 +4504,11 @@ class Vehicle:
                 # Wait 2 seconds
                 await asyncio.sleep(2)
         elif type == 'vehicle-honk-and-flash-started':
-            if self._requests.get('refresh', {}).get('id', None):
-                openRequest= self._requests.get('refresh', {}).get('id', None)
+            if self._requests.get('honkandflash', {}).get('id', None):
+                openRequest= self._requests.get('honkandflash', {}).get('id', None)
                 if openRequest == requestId:
                     self._LOGGER.debug('The notification closes an open request initiated by PyCupra.')
-                    self._requests.get('refresh', {}).pop('id')
+                    self._requests.get('honkandflash', {}).pop('id')
             # Nothing else to do
         elif type in ('vehicle-connection-state-offline'):
             self._LOGGER.info(f'   Got notification \'{type}\'. Let\'s hope, the vehicle will be back online soon. ')

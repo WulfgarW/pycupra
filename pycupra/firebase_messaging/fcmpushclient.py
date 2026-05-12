@@ -1,8 +1,7 @@
+# Functions to receive firebase cloud messaging notifications 
+# Taken from https://github.com/sdb9696/firebase-messaging v0.4.5 with small modifications
+
 from __future__ import annotations
-
-"""Functions to receive firebase cloud messaging notifications """
-"""Taken from https://github.com/sdb9696/firebase-messaging v0.4.5 with small modifications"""
-
 import asyncio
 import contextlib
 import json

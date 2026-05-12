@@ -157,6 +157,7 @@ API_MILEAGE = '{baseurl}/v1/vehicles/{vin}/mileage'                             
 API_MAINTENANCE = '{baseurl}/v1/vehicles/{vin}/maintenance'                                          # Inspection information
 API_MEASUREMENTS = '{baseurl}/v1/vehicles/{vin}/measurements/engines'                                # ???
 API_STATUS = '{baseurl}/v2/vehicles/{vin}/status'                                                    # Status information like locks and windows
+API_LOCK_UNLOCK_ENABLED = '{baseurl}/settings/api/v2/settings/remote-lock-unlock-enabled?vin={vin}&region=US&enrolment-country={enrolmentCountry}&user-role={userRole}' # Is remote lock/unlock enabled?
 API_WARNINGLIGHTS = '{baseurl}/v3/vehicles/{vin}/warninglights'                                      # ???
 API_SHOP = '{baseurl}/v1/shop/vehicles/{vin}/articles'                                               # ???
 #API_ACTION = '{baseurl}/v1/vehicles/{vin}/{action}/requests/{command}'                               # Actions (e.g. ActionCharge="charging", ActionChargeStart="start",ActionChargeStop="stop")
