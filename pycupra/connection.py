@@ -1504,8 +1504,10 @@ class Connection:
     async def get_sec_token(self, spin, baseurl) -> str:
         """Get a security token, required for certain set functions."""
         data = {'spin': spin}
+        self.addToAnonymisationDict(spin, '[SPIN_ANONYMISED]')
         url = API_SECTOKEN.format(baseurl=baseurl, userId=self._user_id)
         response = await self.post(url, json=data, allow_redirects=True)
+        self._anonymisationDict.pop(spin, None)
         if response.get('securityToken', False):
             return response['securityToken']
         else:
