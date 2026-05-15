@@ -2524,7 +2524,7 @@ class Vehicle:
     @property
     def is_target_soc_supported(self) -> bool:
         """Target state of charge supported."""
-        if self.attrs.get('charging', {}).get('info', {}).get('settings', {}).get('targetSoc', False):
+        if 'targetSoc' in self.attrs.get('charging', {}).get('info', {}).get('settings', {}):
             return True
         else:
             return False
@@ -3034,7 +3034,7 @@ class Vehicle:
     @property
     def is_seat_heating_supported(self) -> bool:
         """Return true if vehichle has seat heating."""
-        if self.attrs.get('airConditioning', {}).get('seatHeatingSupport', False):
+        if 'seatHeatingSupport' in self.attrs.get('airConditioning', {}):
             return True
         return False
 
@@ -3236,8 +3236,9 @@ class Vehicle:
         response = 0
         if self.attrs.get('status', False):
             if 'doors' in self.attrs.get('status'):
-                response = self.attrs.get('status')['doors'].get('frontLeft', {}).get('locked', 0)
-        return True if response != 0 else False
+                if 'locked' in self.attrs.get('status')['doors'].get('frontLeft', {}):
+                    return True
+        return False
 
     @property
     def door_locked(self) -> bool:

@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-#from string import ascii_letters as letters, digits
-#from os import environ as env
-#from os.path import join, dirname, expanduser
-#from itertools import product
+
+# from string import ascii_letters as letters, digits
+# from os import environ as env
+# from os.path import join, dirname, expanduser
+# from itertools import product
 import json
 import logging
 import re
@@ -19,16 +20,16 @@ def obj_parser(obj):
     for key, val in obj.items():
         try:
             if isinstance(val, str):
-                if val in ('false', 'False', 'FALSE'):
+                if val in ("false", "False", "FALSE"):
                     obj[key] = False
-                elif val in ('true', 'True', 'TRUE'):
+                elif val in ("true", "True", "TRUE"):
                     obj[key] = True
                 else:
-                    obj[key]  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
-            #dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
-            #if dtVal.tzinfo is None:
+                    obj[key] = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
+            # dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
+            # if dtVal.tzinfo is None:
             #    dtVal  = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S")
-            #obj[key] = dtVal
+            # obj[key] = dtVal
         except (TypeError, ValueError):
             pass
     return obj
@@ -70,7 +71,9 @@ def find_path(src, path):
             path = path.split(".")
         return find_path(src[path[0]], path[1:])
     except Exception as e:
-        _LOGGER.error(f"Error {e} in find_path for path={path}. Function returns '' and continues.")
+        _LOGGER.error(
+            f"Error {e} in find_path for path={path}. Function returns '' and continues."
+        )
     return ""
 
 
@@ -106,7 +109,9 @@ def camel2slug(s) -> str:
 
 def datetime2string(data, withTimezone=False):
     if isinstance(data, dict):
-        return {key: datetime2string(value, withTimezone) for key, value in data.items()}
+        return {
+            key: datetime2string(value, withTimezone) for key, value in data.items()
+        }
     elif isinstance(data, list):
         return [datetime2string(item, withTimezone) for item in data]
     elif isinstance(data, datetime):
@@ -116,12 +121,15 @@ def datetime2string(data, withTimezone=False):
     else:
         return data
 
+
 def convertTimerUtcToLocal(timer):
     if isinstance(timer, dict):
         newValue = {}
         for key, value in timer.items():
-            if key == 'startTime':
-                n = datetime.strptime("2025-01-01"+'T'+value+":00", '%Y-%m-%dT%H:%M:%S').replace(tzinfo=timezone.utc)
+            if key == "startTime":
+                n = datetime.strptime(
+                    "2025-01-01" + "T" + value + ":00", "%Y-%m-%dT%H:%M:%S"
+                ).replace(tzinfo=timezone.utc)
                 newValue[key] = n.astimezone(None).strftime("%H:%M")
             else:
                 newValue[key] = convertTimerUtcToLocal(value)
