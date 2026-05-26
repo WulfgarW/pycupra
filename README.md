@@ -8,7 +8,7 @@ https://github.com/robinostlund/volkswagencarnet
 
 ## Information
 
-Retrieve statistics about your Cupra/Seat from the Cupra/Seat Connect online service
+Retrieve information about your Cupra/Seat vehicle from the Cupra/Seat portal.
 
 ## Breaking changes
 
@@ -19,9 +19,11 @@ Retrieve statistics about your Cupra/Seat from the Cupra/Seat Connect online ser
 
 - Nightly update reduction: If nightly reduction is activated and the current time is within the time frame between 22:00 and 05:00, then vehicle.update(0) performs a full update, if the last full update is more than 1700 seconds ago. If that's not the case, vehicle.update(0) does nothing.
 
-- PyCupra can ask the Seat/Cupra portal to send push notifications to PyCupra if the charging status or the climatisation status has changed or when the API has finished a request like lock or unlock vehicle, start or stop charging or change departure timers or ....
+- PyCupra can ask the Cupra/Seat portal to send push notifications to PyCupra if the charging status or the climatisation status has changed or when the API has finished a request like lock or unlock vehicle, start or stop charging or change departure timers or ....
 
-- PyCupra read files form the EUDA portal of VW group, if the user has registered there and set up an ongoing data request. (This is still experimental.)
+- PyCupra read files from the EUDA portal of VW group, if the user has registered there and set up an ongoing data request. (This is still experimental.)
+
+- As the API no longer provides the complete tripstatistics history, PyCupra builds its own history and stores it in the pycupra_data folder.
 
 ## Thanks to
 
@@ -33,8 +35,8 @@ Retrieve statistics about your Cupra/Seat from the Cupra/Seat Connect online ser
 ### Example
 
 For an extensive example, please use the code found in example/PyCupra.py.
-When logged in the library will automatically create a vehicle object for every car registered to the account. Initially no data is fetched at all. Use the doLogin method and it will sign in with the credentials used for the class constructor. After a successful login, the tokens are stored in a json file. Later doLogin calls can use the token file instead of the credentials.
-Method get_vehicles will fetch vehicle basic information and create Vehicle class objects for all associated vehicles in account.
+Use the doLogin method, and it will sign in with the credentials used for the class constructor. After a successful login, the tokens are stored in a json file. Later doLogin calls can use the token file instead of the credentials.
+When logged in, the method get_vehicles will fetch vehicle basic information and create Vehicle class objects for all associated vehicles in account.
 To update all available data use the update_all method of the Connect class. This will call the update function for all registered vehicles, which in turn will fetch data from all available API endpoints.
 
 The file *pycupra_credentials.json.demo* explains the data structure of the credentials file. 

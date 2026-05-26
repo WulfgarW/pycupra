@@ -2276,6 +2276,12 @@ def create_instruments():
             unit="%",
         ),
         Sensor(
+            attr="cng_level",
+            name="Cng level",
+            icon="mdi:storage-tank",
+            unit="%",
+        ),
+        Sensor(
             attr="service_inspection",
             name="Service inspection days",
             icon="mdi:garage",
@@ -2358,6 +2364,13 @@ def create_instruments():
         Sensor(
             attr="combustion_range",
             name="Combustion range",
+            icon="mdi:car",
+            unit="km",
+            device_class="distance",
+        ),
+        Sensor(
+            attr="cng_range",
+            name="Cng range",
             icon="mdi:car",
             unit="km",
             device_class="distance",

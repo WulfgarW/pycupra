@@ -74,6 +74,8 @@ RESOURCES = [
         "climatisation_window_heating_enabled",
 		"climatisation_time_left",
 		"climatisation_estimated_end_time",
+		"cng_level",
+		"cng_range",
 		"combined_range",
 		"combustion_range",
         "climatisation_timer1",
