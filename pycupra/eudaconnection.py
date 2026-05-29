@@ -59,6 +59,7 @@ from .const import (
     EUDA_SHORT_TERM_DATA_TRAVEL_TIME_KEY,
     EUDA_SHORT_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY,
     EUDA_SHORT_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY,
+    EUDA_SHORT_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY,
 )
 
 version_info >= (3, 0) or exit("Python 3 required")
@@ -1434,6 +1435,13 @@ class EUDAConnection:
                             tripElement["fuelConsumption"] = int(
                                 element.get("value", "0")
                             )
+                        if (
+                            element.get("key", "")
+                            == EUDA_SHORT_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY
+                        ):
+                            tripElement["gasConsumption"] = int(
+                                element.get("value", "0")
+                            )
                     # tripElement['tripEnd']=timeStamp
                     if len(tripElement) < 6:
                         self._LOGGER.warning(
@@ -1515,6 +1523,9 @@ class EUDAConnection:
                             data["electricConsumption"] = int(
                                 row.get("electricConsumption", "0")
                             )
+                            data["gasConsumption"] = int(
+                                row.get("gasConsumption", "0")
+                            )
                             data["travelTime"] = int(row.get("travelTime", "0"))
                             data["distance"] = int(row.get("distance", "0"))
                             tripEndString = row.get(
@@ -1560,6 +1571,7 @@ class EUDAConnection:
                         "travelTime",
                         "fuelConsumption",
                         "electricConsumption",
+                        "gasConsumption",
                     ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writeheader()
@@ -1587,6 +1599,7 @@ class EUDAConnection:
                                 "electricConsumption": trip.get(
                                     "electricConsumption", 0
                                 ),
+                                "gasConsumption": trip.get("gasConsumption", 0),
                             }
                         )
                         rowCounter = rowCounter + 1

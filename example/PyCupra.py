@@ -131,6 +131,7 @@ RESOURCES = [
 		"trip_last_average_auxiliary_consumption",
 		"trip_last_average_electric_consumption",
 		"trip_last_average_fuel_consumption",
+		"trip_last_average_gas_consumption",
 		"trip_last_average_speed",
 		"trip_last_duration",
 		"trip_last_entry",
@@ -140,6 +141,7 @@ RESOURCES = [
 		"trip_last_cycle_average_auxiliary_consumption",
 		"trip_last_cycle_average_electric_consumption",
 		"trip_last_cycle_average_fuel_consumption",
+		"trip_last_cycle_average_gas_consumption",
 		"trip_last_cycle_average_speed",
 		"trip_last_cycle_duration",
 		"trip_last_cycle_entry",
@@ -167,10 +169,12 @@ RESOURCES = [
         "long_term_average_speed",
         "long_term_average_electric_consumption",
         "long_term_average_fuel_consumption",
+        "long_term_average_gas_consumption",
         "short_term_distance",
         "short_term_duration",
         "short_term_average_electric_consumption",
         "short_term_average_fuel_consumption",
+        "short_term_average_gas_consumption",
 ]
 
 def is_enabled(attr):

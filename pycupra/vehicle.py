@@ -3638,7 +3638,9 @@ class Vehicle:
     def is_secondary_range_supported(self) -> bool:
         if len(self.attrs.get("ranges", [])) > 1:
             if self.attrs.get("ranges")[1].get("value", False) is not False:
-                return True
+                rangeType = self.attrs.get("ranges")[1].get("rangeName", "")
+                if rangeType.find("RangeKm") > 0:
+                    return True
         # if self.attrs.get('mycar', False):
         #    if 'engines' in self.attrs.get('mycar', {}):
         #        if 'secondary' in self.attrs.get('mycar')['engines']:
@@ -3661,7 +3663,9 @@ class Vehicle:
     def is_secondary_drive_supported(self) -> bool:
         if len(self.attrs.get("ranges", [])) > 1:
             if self.attrs.get("ranges")[1].get("rangeName", False):
-                return True
+                rangeType = self.attrs.get("ranges")[1].get("rangeName", "")
+                if rangeType.find("RangeKm") > 0:
+                    return True
         # if self.attrs.get('mycar', False):
         #    if 'engines' in self.attrs.get('mycar', {}):
         #        if 'secondary' in self.attrs.get('mycar')['engines']:
@@ -4866,6 +4870,18 @@ class Vehicle:
             return False
 
     @property
+    def trip_last_average_gas_consumption(self):
+        return self.trip_last_entry.get("gasConsumption")
+
+    @property
+    def is_trip_last_average_gas_consumption_supported(self) -> bool:
+        response = self.trip_last_entry
+        if response and type(response.get("gasConsumption", None)) in (float, int):
+            return True
+        else:
+            return False
+
+    @property
     def trip_last_average_auxiliary_consumption(self):
         return self.trip_last_entry.get("averageAuxConsumption")
 
@@ -5030,6 +5046,18 @@ class Vehicle:
     def is_trip_last_cycle_average_fuel_consumption_supported(self) -> bool:
         response = self.trip_last_cycle_entry
         if response and type(response.get("fuelConsumption", None)) in (float, int):
+            return True
+        else:
+            return False
+
+    @property
+    def trip_last_cycle_average_gas_consumption(self):
+        return self.trip_last_cycle_entry.get("gasConsumption")
+
+    @property
+    def is_trip_last_cycle_average_gas_consumption_supported(self) -> bool:
+        response = self.trip_last_cycle_entry
+        if response and type(response.get("gasConsumption", None)) in (float, int):
             return True
         else:
             return False

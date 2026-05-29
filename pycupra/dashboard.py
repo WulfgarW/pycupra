@@ -2447,6 +2447,12 @@ def create_instruments():
             unit="l/100km",
         ),
         Sensor(
+            attr="trip_last_average_gas_consumption",
+            name="Last trip average gas consumption",
+            icon="mdi:storage-tank",
+            unit="kg/100km",
+        ),
+        Sensor(
             attr="trip_last_duration",
             name="Last trip duration",
             icon="mdi:clock",
@@ -2514,6 +2520,12 @@ def create_instruments():
             name="Last cycle average fuel consumption",
             icon="mdi:fuel",
             unit="l/100km",
+        ),
+        Sensor(
+            attr="trip_last_cycle_average_gas_consumption",
+            name="Last cycle average gas consumption",
+            icon="mdi:storage-tank",
+            unit="kg/100km",
         ),
         Sensor(
             attr="trip_last_cycle_average_auxiliary_consumption",
@@ -2940,6 +2952,12 @@ def create_eudaInstruments():
             unit="l/100km",
         ),
         EUDASensor(
+            attr="long_term_average_gas_consumption",
+            name="Last long average gas consumption",
+            icon="mdi:storage-tank",
+            unit="kg/100km",
+        ),
+        EUDASensor(
             attr="long_term_duration",
             name="Last long duration",
             icon="mdi:clock",
@@ -2965,6 +2983,12 @@ def create_eudaInstruments():
             name="Last short average fuel consumption",
             icon="mdi:fuel",
             unit="l/100km",
+        ),
+        EUDASensor(
+            attr="short_term_average_gas_consumption",
+            name="Last short average gas consumption",
+            icon="mdi:storage-tank",
+            unit="kg/100km",
         ),
         EUDASensor(
             attr="short_term_duration",

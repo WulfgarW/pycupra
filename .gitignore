@@ -10,3 +10,4 @@ __pycache__/
 *.log
 *.png
 *.csv
+*.pdf

@@ -2414,11 +2414,11 @@ class Connection:
             self._LOGGER.debug(f"Verifying token for {aud}")
             # If audience indicates a client from https://identity.vwgroup.io
             for client in CLIENT_LIST:
-                if self._session_fulldebug:
-                    self._LOGGER.debug(
-                        f"Matching {aud} against {CLIENT_LIST[client].get('CLIENT_ID', '')}"
-                    )
                 if aud == CLIENT_LIST[client].get("CLIENT_ID", ""):
+                    if self._session_fulldebug:
+                        self._LOGGER.debug(
+                            f"{aud} matches client id for brand {client}. Fetching token keys now."
+                        )
                     req = await self._session.get(url=AUTH_TOKENKEYS)
                     break
             if req is None:
@@ -2609,6 +2609,9 @@ class Connection:
                         data["electricConsumption"] = float(
                             row.get("electricConsumption", "0.0")
                         )
+                        data["gasConsumption"] = float(
+                            row.get("gasConsumption", "0.0")
+                        )
                         data["drivingTime"] = float(row.get("drivingTime", "0.0"))
                         data["distanceDriven"] = float(row.get("distanceDriven", "0.0"))
                         data["speed"] = float(row.get("speed", "0.0"))
@@ -2656,6 +2659,7 @@ class Connection:
                     "drivingTime",
                     "fuelConsumption",
                     "electricConsumption",
+                    "gasConsumption",
                     "speed",
                     "comment",
                 ]
@@ -2689,6 +2693,7 @@ class Connection:
                             "drivingTime": trip.get("drivingTime", 0.0),
                             "fuelConsumption": trip.get("fuelConsumption", 0.0),
                             "electricConsumption": trip.get("electricConsumption", 0.0),
+                            "gasConsumption": trip.get("gasConsumption", 0.0),
                             "speed": trip.get("speed", 0.0),
                             "comment": trip.get("comment", ""),
                         }
@@ -2759,6 +2764,9 @@ class Connection:
                     self.dailyTripData[vin][entryDate]["fuelConsumption"] = (
                         currentDaySumElement.get("fuelConsumption", 0.0)
                     )
+                    self.dailyTripData[vin][entryDate]["gasConsumption"] = (
+                        currentDaySumElement.get("gasConsumption", 0.0)
+                    )
                     self.dailyTripData[vin][entryDate]["speed"] = (
                         currentDaySumElement.get("speed", 0.0)
                     )
@@ -2797,6 +2805,9 @@ class Connection:
                 )
                 self.dailyTripData[vin][entryDate]["fuelConsumption"] = (
                     currentDaySumElement.get("fuelConsumption", 0.0)
+                )
+                self.dailyTripData[vin][entryDate]["gasConsumption"] = (
+                    currentDaySumElement.get("gasConsumption", 0.0)
                 )
                 self.dailyTripData[vin][entryDate]["drivingTime"] = (
                     currentDaySumElement.get("drivingTime", 0.0)
@@ -2873,6 +2884,9 @@ class Connection:
                     self.monthlyTripData[vin][entryDate]["fuelConsumption"] = (
                         currentMonthSumElement.get("fuelConsumption", 0.0)
                     )
+                    self.monthlyTripData[vin][entryDate]["gasConsumption"] = (
+                        currentMonthSumElement.get("gasConsumption", 0.0)
+                    )
                     self.monthlyTripData[vin][entryDate]["speed"] = (
                         currentMonthSumElement.get("speed", 0.0)
                     )
@@ -2913,6 +2927,9 @@ class Connection:
                 )
                 self.monthlyTripData[vin][entryDate]["fuelConsumption"] = (
                     currentMonthSumElement.get("fuelConsumption", 0.0)
+                )
+                self.monthlyTripData[vin][entryDate]["gasConsumption"] = (
+                    currentMonthSumElement.get("gasConsumption", 0.0)
                 )
                 self.monthlyTripData[vin][entryDate]["drivingTime"] = (
                     currentMonthSumElement.get("drivingTime", 0.0)
