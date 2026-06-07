@@ -4,6 +4,15 @@
 import logging
 from datetime import datetime
 from .utilities import camel2slug, convertTimerUtcToLocal
+from .const import (
+    EUDA_DATA_DICT, 
+    EUDA_DATA_CONVERSION_INT,
+    EUDA_DATA_CONVERSION_BOOL, 
+    EUDA_LONG_TERM_DATA_START_MILEAGE_KEY, 
+    EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY,
+    EUDA_OUTSIDE_TEMPERATURE_KEY,
+    EUDA_PARKING_BRAKE_KEY,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2753,13 +2762,15 @@ def create_instruments():
 
 
 class EUDAInstrument:
-    def __init__(self, component, attr, name, icon=None):
+    def __init__(self, component, attr, name, icon=None, key=None, conversion=None):
         self.attr = attr
         self.component = component
         self.name = name
         self.vehicle = None
         self.icon = icon
         self.callback = None
+        self.key = key
+        self.conversion = conversion
 
     def __repr__(self):
         return self.full_name
@@ -2802,53 +2813,51 @@ class EUDAInstrument:
 
     @property
     def state(self):
-        if hasattr(self.vehicle, self.attr):
-            return getattr(self.vehicle, self.attr)
+        if self.vehicle.isEUDADataFieldSupported(self.key):
+            val = self.vehicle.getEUDADataFieldValue(self.key, self.conversion)
+            return val
         else:
             self._LOGGER.debug(f'Could not find attribute "{self.attr}"')
-        return self.vehicle.get_attr(self.attr)
+            return None
 
     @property
     def attributes(self):
         if self.name.startswith("Last long length"):
-            if self.vehicle.is_long_term_start_mileage_supported:
+            if self.vehicle.isEUDADataFieldSupported(EUDA_LONG_TERM_DATA_START_MILEAGE_KEY):
                 attrs = {}
-                attrs["start mileage"] = self.vehicle.long_term_start_mileage
+                attrs["start mileage"] = self.vehicle.getEUDADataFieldValue(EUDA_LONG_TERM_DATA_START_MILEAGE_KEY, EUDA_DATA_CONVERSION_INT)
                 return attrs
         if self.name.startswith("Last short length"):
-            if self.vehicle.is_short_term_start_mileage_supported:
+            if self.vehicle.isEUDADataFieldSupported(EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY):
                 attrs = {}
-                attrs["start mileage"] = self.vehicle.short_term_start_mileage
+                attrs["start mileage"] = self.vehicle.getEUDADataFieldValue(EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY, EUDA_DATA_CONVERSION_INT)
                 return attrs
-        if self.name.startswith("Parking brake") or self.name.startswith(
-            "Outside temperature"
-        ):
-            if hasattr(self.vehicle, self.attr + "_timestamp"):
+        if self.name.startswith("Outside temperature"):
+            if self.vehicle.getEUDADataFieldTimestamp(EUDA_OUTSIDE_TEMPERATURE_KEY) != "unknown":
                 attrs = {}
-                timeStampFunc = getattr(self.vehicle, self.attr + "_timestamp")
-                attrs["time stamp"] = timeStampFunc()
+                attrs["time stamp"] = self.vehicle.getEUDADataFieldTimestamp(EUDA_OUTSIDE_TEMPERATURE_KEY)
+                return attrs
+        if self.name.startswith("Parking brake"):
+            if self.vehicle.getEUDADataFieldTimestamp(EUDA_PARKING_BRAKE_KEY) != "unknown":
+                attrs = {}
+                attrs["time stamp"] = self.vehicle.getEUDADataFieldTimestamp(EUDA_PARKING_BRAKE_KEY)
                 return attrs
         return {}
 
     @property
     def is_supported(self):
         try:
-            supported = "is_" + self.attr + "_supported"
-            if hasattr(self.vehicle, supported):
-                return getattr(self.vehicle, supported)
-            else:
-                return False
+            return self.vehicle.isEUDADataFieldSupported(self.key)
         except Exception as error:
-            self._LOGGER.error(f"An error occurred in {supported}. Error: {error}")
+            self._LOGGER.error(f"An error occurred when checking if {self.attr} is supported. Error: {error}")
             return False
 
 
 class EUDASensor(EUDAInstrument):
-    def __init__(self, attr, name, icon, unit=None, device_class=None):
-        super().__init__(component="sensor", attr=attr, name=name, icon=icon)
+    def __init__(self, attr, name, icon, unit=None, device_class=None, key=None, conversion=None):
+        super().__init__(component="sensor", attr=attr, name=name, icon=icon, key=key, conversion=conversion)
         self.device_class = device_class
         self.unit = unit
-        self.convert = False
 
     @property
     def is_mutable(self) -> bool:
@@ -2871,8 +2880,8 @@ class EUDASensor(EUDAInstrument):
 
 
 class EUDABinarySensor(EUDAInstrument):
-    def __init__(self, attr, name, device_class, icon="", reverse_state=False):
-        super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
+    def __init__(self, attr, name, device_class, icon="", reverse_state=False, key=None, conversion=None):
+        super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon, key=key, conversion=conversion)
         self.device_class = device_class
         self.reverse_state = reverse_state
 
@@ -2917,100 +2926,31 @@ class EUDABinarySensor(EUDAInstrument):
 
 
 def create_eudaInstruments():
-    return [
-        EUDASensor(
-            attr="outside_temperature",
-            name="Outside temperature",
-            icon="mdi:thermometer",
-            unit="°C",
-            device_class="temperature",
-        ),
-        EUDASensor(
-            attr="oil_level",
-            name="Oil level",
-            icon="mdi:oil",
-            unit="%",
-        ),
-        EUDASensor(
-            attr="long_term_average_speed",
-            name="Last long average speed",
-            icon="mdi:speedometer",
-            unit="km/h",
-            device_class="speed",
-        ),
-        EUDASensor(
-            attr="long_term_average_electric_consumption",
-            name="Last long average electric consumption",
-            icon="mdi:car-battery",
-            unit="kWh/100km",
-            device_class="energy_distance",
-        ),
-        EUDASensor(
-            attr="long_term_average_fuel_consumption",
-            name="Last long average fuel consumption",
-            icon="mdi:fuel",
-            unit="l/100km",
-        ),
-        EUDASensor(
-            attr="long_term_average_gas_consumption",
-            name="Last long average gas consumption",
-            icon="mdi:storage-tank",
-            unit="kg/100km",
-        ),
-        EUDASensor(
-            attr="long_term_duration",
-            name="Last long duration",
-            icon="mdi:clock",
-            unit="min",
-            device_class="duration",
-        ),
-        EUDASensor(
-            attr="long_term_distance",
-            name="Last long length",
-            icon="mdi:map-marker-distance",
-            unit="km",
-            device_class="distance",
-        ),
-        EUDASensor(
-            attr="short_term_average_electric_consumption",
-            name="Last short average electric consumption",
-            icon="mdi:car-battery",
-            unit="kWh/100km",
-            device_class="energy_distance",
-        ),
-        EUDASensor(
-            attr="short_term_average_fuel_consumption",
-            name="Last short average fuel consumption",
-            icon="mdi:fuel",
-            unit="l/100km",
-        ),
-        EUDASensor(
-            attr="short_term_average_gas_consumption",
-            name="Last short average gas consumption",
-            icon="mdi:storage-tank",
-            unit="kg/100km",
-        ),
-        EUDASensor(
-            attr="short_term_duration",
-            name="Last short duration",
-            icon="mdi:clock",
-            unit="min",
-            device_class="duration",
-        ),
-        EUDASensor(
-            attr="short_term_distance",
-            name="Last short length",
-            icon="mdi:map-marker-distance",
-            unit="km",
-            device_class="distance",
-        ),
-        EUDABinarySensor(
-            attr="parking_brake",
-            name="Parking brake",
-            device_class="door",
-            icon="mdi:car-brake-parking",
-        ),
-    ]
+    instList = []
+    for dictElem in EUDA_DATA_DICT.values():
+        if dictElem.get("conversion", None) == EUDA_DATA_CONVERSION_BOOL:
+            binary_sensor = EUDABinarySensor(
+                attr=dictElem.get("attr", None),
+                name=dictElem.get("name", None),
+                icon=dictElem.get("icon", None),
+                device_class=dictElem.get("device_class", None),
+                key=dictElem.get("key", None),
+                conversion=dictElem.get("conversion", None),
+            )
+            instList.append(binary_sensor)
+        else:
+            sensor = EUDASensor(
+                attr=dictElem.get("attr", None),
+                name=dictElem.get("name", None),
+                icon=dictElem.get("icon", None),
+                unit=dictElem.get("unit", None),
+                device_class=dictElem.get("device_class", None),
+                key=dictElem.get("key", None),
+                conversion=dictElem.get("conversion", None),
+            )
+        instList.append(sensor)
+
+    return instList
 
 
 class Dashboard:

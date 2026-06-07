@@ -243,10 +243,32 @@ SUMTYPE_DAILY = "daily"
 SUMTYPE_MONTHLY = "monthly"
 
 # Constants for EUDA connection
-EUDA_CLIENT_LIST = {
-    "CLIENT_ID": "f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com",
-    "SCOPE": "openid profile cars",
-    "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+EUDA_CLIENT_LIST= {
+    "cupra": {
+        "CLIENT_ID": "f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com",
+        "SCOPE": "openid profile cars",
+        "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+    },
+    "seat": {
+        "CLIENT_ID": "f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com",
+        "SCOPE": "openid profile cars",
+        "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+    },
+    "audi": {
+        "CLIENT_ID": "cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com",
+        "SCOPE": "openid profile cars",
+        "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+    },
+    "skoda": {
+        "CLIENT_ID": "3ea88bf9-1d4e-4a68-b3ad-4098c1f1d246@apps_vw-dilab_com",
+        "SCOPE": "openid profile cars",
+        "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+    },
+    "volkswagen_passenger_cars": {
+        "CLIENT_ID": "9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com",
+        "SCOPE": "openid profile cars",
+        "REDIRECT_URL": "https://eu-data-act.drivesomethinggreater.com/login",
+    },
 }
 
 EUDA_HEADERS_SESSION = {
@@ -321,3 +343,140 @@ EUDA_OUTSIDE_TEMPERATURE_KEY = "6810b781-e54a-35e8-af98-fcdefb54bac6"
 EUDA_PARKING_BRAKE_KEY = "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48"
 EUDA_OIL_LEVEL_ADDITIONAL_OIL_LEVEL_KEY = "78e92351-cf56-3c15-96d3-9b63d62ca618"
 EUDA_OIL_LEVEL_ACTUAL_LEVEL_KEY = "a3368611-8c63-3b7d-9d19-148a464c7a7b"
+
+EUDA_DATA_CONVERSION_FLOAT = 0
+EUDA_DATA_CONVERSION_INT = 1
+EUDA_DATA_CONVERSION_BOOL = 2
+EUDA_DATA_CONVERSION_DIVIDE_BY_10 = 3
+EUDA_DATA_CONVERSION_KELVIN_TO_CELSIUS = 4
+EUDA_DATA_CONVERSION_INT_INVERT = 5
+
+
+EUDA_DATA_DICT = {
+    "outside_temperature": {
+        "attr": "outside_temperature",
+        "name": "Outside temperature",
+        "icon": "mdi:thermometer",
+        "unit": "°C",
+        "device_class": "temperature",
+        "key": "6810b781-e54a-35e8-af98-fcdefb54bac6",
+        "conversion": EUDA_DATA_CONVERSION_KELVIN_TO_CELSIUS,
+    },
+    "oil_level": {
+        "attr": "oil_level",
+        "name": "Oil level",
+        "icon": "mdi:oil",
+        "unit": "%",
+        #"device_class": "temperature",
+        "key": "a3368611-8c63-3b7d-9d19-148a464c7a7b",
+        "conversion": EUDA_DATA_CONVERSION_FLOAT,
+    },
+    "parking_brake": {
+        "attr": "parking_brake",
+        "name": "Parking brake",
+        "icon": "mdi:car-brake-parking",
+        #"unit": "%",
+        "device_class": "door",
+        "key": "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48",
+        "conversion": EUDA_DATA_CONVERSION_BOOL,
+    },
+    "long_term_average_speed": {
+        "attr": "long_term_average_speed",
+        "name": "Last long average speed",
+        "icon": "mdi:speedometer",
+        "unit": "km/h",
+        "device_class": "speed",
+        "key": "77838f59-786a-36fa-b1d4-47217a9fb40e",
+        "conversion": EUDA_DATA_CONVERSION_INT,
+    },
+    "long_term_average_electric_consumption": {
+        "attr": "long_term_average_electric_consumption",
+        "name": "Last long average electric consumption",
+        "icon": "mdi:car-battery",
+        "unit": "kWh/100km",
+        "device_class": "energy_distance",
+        "key": "79f1709e-028d-3b3a-936e-bbef63b92969",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "long_term_average_fuel_consumption": {
+        "attr": "long_term_average_fuel_consumption",
+        "name": "Last long average fuel consumption",
+        "icon": "mdi:fuel",
+        "unit": "l/100km",
+        #"device_class": "energy_distance",
+        "key": "df531c6f-8897-3236-a760-5975322e7021",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "long_term_average_gas_consumption": {
+        "attr": "long_term_average_gas_consumption",
+        "name": "Last long average gas consumption",
+        "icon": "mdi:storage-tank",
+        "unit": "kg/100km",
+        #"device_class": "energy_distance",
+        "key": "a326ae4c-afe8-3929-bf1a-b95ba7107c2f",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "long_term_duration": {
+        "attr": "long_term_duration",
+        "name": "Last long duration",
+        "icon": "mdi:clock",
+        "unit": "min",
+        "device_class": "duration",
+        "key": "d2ad181b-511a-37d0-8109-e676e68c86b2",
+        "conversion": EUDA_DATA_CONVERSION_INT,
+    },
+    "long_term_distance": {
+        "attr": "long_term_distance",
+        "name": "Last long length",
+        "icon": "mdi:map-marker-distance",
+        "unit": "km",
+        "device_class": "distance",
+        "key": "f8eba56b-ee3f-3c48-b852-03c9b956053f",
+        "conversion": EUDA_DATA_CONVERSION_INT,
+    },
+    "short_term_average_electric_consumption": {
+        "attr": "short_term_average_electric_consumption",
+        "name": "Last short average electric consumption",
+        "icon": "mdi:car-battery",
+        "unit": "kWh/100km",
+        "device_class": "energy_distance",
+        "key": "3b1bdf91-8e59-333a-93ed-f8e5a980bc96",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "short_term_average_fuel_consumption": {
+        "attr": "short_term_average_fuel_consumption",
+        "name": "Last short average fuel consumption",
+        "icon": "mdi:fuel",
+        "unit": "l/100km",
+        #"device_class": "energy_distance",
+        "key": "a0ee824b-9a53-34ee-8107-3ed94684efa7",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "short_term_average_gas_consumption": {
+        "attr": "short_term_average_gas_consumption",
+        "name": "Last short average gas consumption",
+        "icon": "mdi:storage-tank",
+        "unit": "kg/100km",
+        #"device_class": "energy_distance",
+        "key": "bdf31409-b799-3969-8199-e305082aabf2",
+        "conversion": EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    },
+    "short_term_duration": {
+        "attr": "short_term_duration",
+        "name": "Last short duration",
+        "icon": "mdi:clock",
+        "unit": "min",
+        "device_class": "duration",
+        "key": "f0890c07-e62e-32dc-ab3b-80431f070b13",
+        "conversion": EUDA_DATA_CONVERSION_INT,
+    },
+    "short_term_distance": {
+        "attr": "short_term_distance",
+        "name": "Last short length",
+        "icon": "mdi:map-marker-distance",
+        "unit": "km",
+        "device_class": "distance",
+        "key": "9f55581a-4fa2-3570-9c9e-b80d210b9a42",
+        "conversion": EUDA_DATA_CONVERSION_INT,
+    },
+}

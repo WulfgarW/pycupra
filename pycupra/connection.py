@@ -593,11 +593,13 @@ class Connection:
             self._LOGGER.warning(
                 'Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
             )
+            loginInProgress = False
             raise
         except PyCupraMarketingConsentException:
             self._LOGGER.warning(
                 'Login failed, the marketing conditions might have been updated and need to be accepted or disagreed. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
             )
+            loginInProgress = False
             raise
         except PyCupraAccountLockedException:
             self._LOGGER.warning(
@@ -608,11 +610,13 @@ class Connection:
             self._LOGGER.warning(
                 "Invalid credentials or invalid configuration. Make sure you have entered the correct credentials"
             )
+            loginInProgress = False
             raise
         except PyCupraException:
             self._LOGGER.error(
                 "An API error was encountered during login, try again later"
             )
+            loginInProgress = False
             raise
         except TypeError:
             self._LOGGER.warning(
@@ -620,6 +624,7 @@ class Connection:
                     f'Login failed for {self._session_auth_username}. The server might be temporarily unavailable, try again later. If the problem persists, verify your account at your local SEAT/Cupra site, e.g. "https://cupraofficial.se/"'
                 )
             )
+            loginInProgress = False
         except Exception as error:
             self._LOGGER.error(
                 self.anonymise(

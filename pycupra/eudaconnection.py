@@ -210,22 +210,22 @@ class EUDAConnection:
             )
             auth_issuer = response_data["issuer"]
             auth_oidc = response_data["authorization_endpoint"]
-            # authorization_url = EUDA_AUTH_OIDC + "?client_id=" + EUDA_CLIENT_LIST['CLIENT_ID'] + "&response_type=code&scope="
+            # authorization_url = EUDA_AUTH_OIDC + "?client_id=" + EUDA_CLIENT_LIST[client]['CLIENT_ID'] + "&response_type=code&scope="
             authorization_url = (
                 auth_oidc
                 + "?client_id="
-                + EUDA_CLIENT_LIST["CLIENT_ID"]
+                + EUDA_CLIENT_LIST[client]["CLIENT_ID"]
                 + "&response_type=code&scope="
             )
             authorization_url = (
                 authorization_url
-                + EUDA_CLIENT_LIST["SCOPE"]
+                + EUDA_CLIENT_LIST[client]["SCOPE"]
                 + "&state=de__en__"
                 + client.upper()
                 + "&redirect_uri="
             )
             authorization_url = (
-                authorization_url + EUDA_CLIENT_LIST["REDIRECT_URL"] + "&prompt=login"
+                authorization_url + EUDA_CLIENT_LIST[client]["REDIRECT_URL"] + "&prompt=login"
             )
 
             req = await self._session.get(
@@ -283,7 +283,7 @@ class EUDAConnection:
             if "signin-service" in ref:
                 self._LOGGER.debug("Got redirect to signin-service")
                 # location = await self._signin_service(req, EUDA_AUTH_ISSUER, EUDA_AUTH_OIDC)
-                location = await self._signin_service(req, auth_issuer, auth_oidc)
+                location = await self._signin_service(req, auth_issuer, auth_oidc, client)
             else:
                 # We are already logged on, shorter authorization flow
                 location = req.headers.get("Location", None)
@@ -291,7 +291,7 @@ class EUDAConnection:
             # Follow all redirects until we reach the callback URL
             try:
                 maxDepth = 10
-                while not location.startswith(EUDA_CLIENT_LIST["REDIRECT_URL"]):
+                while not location.startswith(EUDA_CLIENT_LIST[client]["REDIRECT_URL"]):
                     if location is None:
                         raise PyCupraException("Login failed")
                     if "error" in location:
@@ -424,7 +424,7 @@ class EUDAConnection:
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
-                        self._LOGGER.debug(f'Got urf: "{ref}"')
+                        self._LOGGER.debug(f'Got url: "{ref}"')
                     req = await self._session.get(
                         url=ref,
                         headers=self._session_auth_headers,
@@ -498,7 +498,10 @@ class EUDAConnection:
         return True
 
     async def _signin_service(
-        self, html: aiohttp.ClientResponse, authissuer: str, authorizationEndpoint: str
+        self, html: aiohttp.ClientResponse, 
+        authissuer: str, 
+        authorizationEndpoint: str,
+        client: str
     ) -> Any:
         """Method to signin to Connect portal."""
         # Extract login form and extract attributes
@@ -594,7 +597,7 @@ class EUDAConnection:
         self._session_auth_headers["Origin"] = authissuer
         self._LOGGER.debug("Finalizing login")
 
-        client_id = EUDA_CLIENT_LIST["CLIENT_ID"]
+        client_id = EUDA_CLIENT_LIST[client]["CLIENT_ID"]
         pp_url = authissuer + "/" + post_action
         if "signin-service" not in pp_url or client_id not in pp_url:
             pp_url = authissuer + "/signin-service/v1/" + client_id + "/" + post_action
@@ -925,6 +928,8 @@ class EUDAConnection:
             )
             if len(response) > 0:
                 data["vehicles"] = response
+            elif response == []:
+                data["vehicles"] = []
             elif response.get("status_code", {}):
                 self._LOGGER.warning(
                     f"Could not fetch vehicles, HTTP status code: {response.get('status_code')}"
@@ -1360,10 +1365,21 @@ class EUDAConnection:
                         GetTimeStampFromFileName("Dummy_20000101000000.json"),
                     )
                     <= timeStamp
+                    and len(dataFromFile.get("Data", []))>0
                 ):
                     # Time stamp of current file is equal or later than time stamp of self.currentData
                     self.currentData[vin]["timeStamp"] = timeStamp
-                    self.currentData[vin]["Data"] = dataFromFile.get("Data", {})
+                    self.currentData[vin]["Data"] = dataFromFile.get("Data", [])
+                else:
+                    if len(dataFromFile.get("Data", []))<1:
+                        self._LOGGER.info(
+                            f"Data list of file {fileName} is empty."
+                        )
+                    else:
+                        self._LOGGER.info(
+                            f"Timestamp of file {fileName} is {timeStamp} which is not newer than"
+                            f"{self.currentData.get(vin, {}).get("timeStamp",GetTimeStampFromFileName("Dummy_20000101000000.json"),)}."
+                        )
             else:
                 self._LOGGER.error(
                     "Wanted to copy data to raw data dict, but timestamp is already present."
@@ -1617,11 +1633,15 @@ class EUDAConnection:
     async def getData(self) -> bool:
         """ "Reads data like file lists and files for all valid vehicle from the EUDA portal"""
         try:
-            self._LOGGER.debug(
-                self.anonymise(
-                    f"In getData. self.vehicles={len(self.vehicles)}. First vehicle={self.vehicles[0].vin}"
+            if len(self.vehicles)>0:
+                self._LOGGER.debug(
+                    self.anonymise(
+                        f"In getData. self.vehicles={len(self.vehicles)}. First vehicle={self.vehicles[0].vin}"
+                    )
                 )
-            )
+            else:
+                self._LOGGER.debug(f"In getData. Number of vehicles is zero.")
+
             for vehicle in self.vehicles:
                 await self.getDataForOneVehicle(vehicle)
             return True

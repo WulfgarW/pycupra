@@ -5,22 +5,12 @@
 import logging
 
 from .const import (
-    EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY,
-    EUDA_SHORT_TERM_DATA_MILEAGE_KEY,
-    EUDA_SHORT_TERM_DATA_TRAVEL_TIME_KEY,
-    EUDA_SHORT_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY,
-    EUDA_SHORT_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY,
-    EUDA_SHORT_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY,
-    EUDA_LONG_TERM_DATA_START_MILEAGE_KEY,
-    EUDA_LONG_TERM_DATA_MILEAGE_KEY,
-    EUDA_LONG_TERM_DATA_TRAVEL_TIME_KEY,
-    EUDA_LONG_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY,
-    EUDA_LONG_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY,
-    EUDA_LONG_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY,
-    EUDA_LONG_TERM_DATA_AVERAGE_SPEED_KEY,
-    EUDA_OUTSIDE_TEMPERATURE_KEY,
-    EUDA_OIL_LEVEL_ACTUAL_LEVEL_KEY,
-    EUDA_PARKING_BRAKE_KEY,
+    EUDA_DATA_CONVERSION_FLOAT,
+    EUDA_DATA_CONVERSION_INT,
+    EUDA_DATA_CONVERSION_BOOL,
+    EUDA_DATA_CONVERSION_DIVIDE_BY_10,
+    EUDA_DATA_CONVERSION_KELVIN_TO_CELSIUS,
+    EUDA_DATA_CONVERSION_INT_INVERT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,6 +35,20 @@ class EUDAVehicle:
         self._dashboard = None
         self._states = {}
         self.currentData = {}
+
+    def dashboard(self, **config):
+        """Returns dashboard, creates new if none exist."""
+        if self._dashboard is None:
+            # Init new dashboard if none exist
+            from .dashboard import Dashboard
+
+            self._dashboard = Dashboard(self, **config)
+        elif config != self._dashboard._config:
+            # Init new dashboard on config change
+            from .dashboard import Dashboard
+
+            self._dashboard = Dashboard(self, **config)
+        return self._dashboard
 
     @property
     def vin(self):
@@ -89,348 +93,68 @@ class EUDAVehicle:
         """Return model year"""
         return "unknown"
 
-    @property
-    def outside_temperature(self) -> float:
-        """Return outside temperature in °C."""
+    def getEUDADataFieldValue(self, key=None, conversion=None) -> any:
+        """Return value of an EUDA data field identified by key."""
         for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_OUTSIDE_TEMPERATURE_KEY:
+            if element.get("key", "") == key:
                 if "value" in element:
-                    return (
-                        float(element.get("value", "0.0")) / 10 - 273.1
-                    )  # The temperature returnd from the portal is in Kelvin
-        return 0.0
+                    if conversion == None:
+                        return element.get("value", "")
+                    elif conversion == EUDA_DATA_CONVERSION_FLOAT:
+                        return float(element.get("value", "0"))
+                    elif conversion == EUDA_DATA_CONVERSION_INT:
+                        return int(element.get("value", "0"))
+                    elif conversion == EUDA_DATA_CONVERSION_INT_INVERT:
+                        return -int(element.get("value", "0"))
+                    elif conversion == EUDA_DATA_CONVERSION_BOOL:
+                        if element.get("value", "") == "on":
+                            return True
+                        if element.get("value", "") == "locked":
+                            return True
+                        if element.get("value", "") == "1" and element.get("dataFieldName", "").startswith("parking_brake"):
+                            return True
+                        if element.get("value", "") == "3" and element.get("dataFieldName", "").startswith("open_state"):
+                            return True
+                    elif conversion == EUDA_DATA_CONVERSION_DIVIDE_BY_10:
+                        return int(element.get("value", "0")) / 10
+                    elif conversion == EUDA_DATA_CONVERSION_KELVIN_TO_CELSIUS:
+                        return (
+                            float(element.get("value", "0.0")) / 10 - 273.1
+                        )  # The temperature returned from the portal is in Kelvin
+                    else:
+                        self._LOGGER.warning(f"Unknown conversion type {conversion} in getEUDADataFiledValue()")
+        if conversion == EUDA_DATA_CONVERSION_FLOAT:
+            return 0.0
+        elif conversion == EUDA_DATA_CONVERSION_INT:
+            return 0
+        elif conversion == EUDA_DATA_CONVERSION_BOOL:
+            return False
+        elif conversion == EUDA_DATA_CONVERSION_DIVIDE_BY_10:
+            return 0.0
+        elif conversion == EUDA_DATA_CONVERSION_KELVIN_TO_CELSIUS:
+            return 0.0
+        elif conversion == EUDA_DATA_CONVERSION_INT_INVERT:
+            return 0
+        return ""
 
-    @property
-    def is_outside_temperature_supported(self) -> bool:
-        """Return true if outside temperature is supported."""
+    def isEUDADataFieldSupported(self, key=None) -> bool:
+        """Return true if the EUDA data field identified by key is supported."""
         for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_OUTSIDE_TEMPERATURE_KEY:
+            if (
+                element.get("key", "")
+                == key
+            ):
                 if "value" in element:
                     return True
         return False
 
-    def outside_temperature_timestamp(self) -> str:
-        """Return timestamp for outside temperature."""
+    def getEUDADataFieldTimestamp(self, key=None) -> str:
+        """Return timestamp for an EUDA data field identified by key."""
         for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_OUTSIDE_TEMPERATURE_KEY:
+            if element.get("key", "") == key:
                 if "timestampUtc" in element:
                     return element.get("timestampUtc", "unknown")
         return "unknown"
-
-    @property
-    def oil_level(self) -> float:
-        """Return oil level in %."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_OIL_LEVEL_ACTUAL_LEVEL_KEY:
-                if "value" in element:
-                    return float(element.get("value", "0"))
-        return 0.0
-
-    @property
-    def is_oil_level_supported(self) -> bool:
-        """Return true if oil level is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_OIL_LEVEL_ACTUAL_LEVEL_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def parking_brake(self) -> bool:
-        """Return parking brake value."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_PARKING_BRAKE_KEY:
-                if "value" in element:
-                    if element.get("value", "0") != "0":
-                        return True
-        return False
-
-    @property
-    def is_parking_brake_supported(self) -> bool:
-        """Return true if parking brake is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_PARKING_BRAKE_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    def parking_brake_timestamp(self) -> str:
-        """Return timestamp for parking brake value."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_PARKING_BRAKE_KEY:
-                if "timestampUtc" in element:
-                    return element.get("timestampUtc", "unknown")
-        return "unknown"
-
-    @property
-    def long_term_start_mileage(self) -> int:
-        """Return long term start mileage."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_START_MILEAGE_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_long_term_start_mileage_supported(self) -> bool:
-        """Return true if long term start mileage is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_START_MILEAGE_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_distance(self) -> int:
-        """Return long term distance."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_MILEAGE_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_long_term_distance_supported(self) -> bool:
-        """Return true if long term distance is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_MILEAGE_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_duration(self) -> int:
-        """Return long term duration."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_TRAVEL_TIME_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_long_term_duration_supported(self) -> bool:
-        """Return true if long term duration is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_TRAVEL_TIME_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_average_electric_consumption(self) -> float:
-        """Return long term average electric consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_long_term_average_electric_consumption_supported(self) -> bool:
-        """Return true if long term average electric consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_average_fuel_consumption(self) -> float:
-        """Return long term average fuel consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_long_term_average_fuel_consumption_supported(self) -> bool:
-        """Return true if long term average fuel consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_average_gas_consumption(self) -> float:
-        """Return long term average gas consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_long_term_average_gas_consumption_supported(self) -> bool:
-        """Return true if long term average gas consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_LONG_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def long_term_average_speed(self) -> int:
-        """Return long term average speed."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_AVERAGE_SPEED_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_long_term_average_speed_supported(self) -> bool:
-        """Return true if long term aveage speed is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_LONG_TERM_DATA_AVERAGE_SPEED_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_start_mileage(self) -> int:
-        """Return short term start mileage."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_short_term_start_mileage_supported(self) -> bool:
-        """Return true if short term start mileage is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_distance(self) -> int:
-        """Return short term distance."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_MILEAGE_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_short_term_distance_supported(self) -> bool:
-        """Return true if short term distance is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_MILEAGE_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_duration(self) -> int:
-        """Return short term duration."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_TRAVEL_TIME_KEY:
-                if "value" in element:
-                    return int(element.get("value", "0"))
-        return 0
-
-    @property
-    def is_short_term_duration_supported(self) -> bool:
-        """Return true if short term duration is supported."""
-        for element in self.currentData.get("Data", []):
-            if element.get("key", "") == EUDA_SHORT_TERM_DATA_TRAVEL_TIME_KEY:
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_average_electric_consumption(self) -> float:
-        """Return short term average electric consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_short_term_average_electric_consumption_supported(self) -> bool:
-        """Return true if short term average electric consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_ELECTR_ENGINE_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_average_fuel_consumption(self) -> float:
-        """Return short term average fuel consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_short_term_average_fuel_consumption_supported(self) -> bool:
-        """Return true if short term average fuel consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_FUEL_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
-
-    @property
-    def short_term_average_gas_consumption(self) -> float:
-        """Return short term average gas consumption."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return int(element.get("value", "0")) / 10
-        return 0.0
-
-    @property
-    def is_short_term_average_gas_consumption_supported(self) -> bool:
-        """Return true if short term average gas consumption is supported."""
-        for element in self.currentData.get("Data", []):
-            if (
-                element.get("key", "")
-                == EUDA_SHORT_TERM_DATA_AVERAGE_GAS_CONSUMPTION_KEY
-            ):
-                if "value" in element:
-                    return True
-        return False
 
 
 def GetModelFromNickName(nickName: str) -> str:
