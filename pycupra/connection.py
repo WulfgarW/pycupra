@@ -42,6 +42,7 @@ from .exceptions import (
     PyCupraMarketingConsentException,
     PyCupraThrottledException,
     PyCupraLoginFailedException,
+    PyCupraClientRequestForbidden,
 )
 
 from requests_oauthlib import OAuth2Session
@@ -838,6 +839,10 @@ class Connection:
                 self._LOGGER.info(
                     'Received "Bad gateway". Either the endpoint is temporarily unavailable or not supported for this vehicle.'
                 )
+            elif error.status == 403:
+                self._LOGGER.info(
+                    'Received "Forbidden". The endpoint does not accept the request from this client.'
+                )
             elif 400 <= error.status <= 499:
                 self._LOGGER.error(
                     "Received unhandled error indicating client-side problem.\nRestart or try again later."
@@ -1159,6 +1164,14 @@ class Connection:
                         # Initialising vehicle["connectivities"]
                         vehicle["connectivities"] = {"remote-availability": "unknown"}
                     api_vehicles.append(vehicle)
+            else:
+                if legacy_vehicles.get("status_code", 0) == 403:
+                    self._LOGGER.warning(
+                        f"garage/vehicles API endpoint responded with error, HTTP status code: {response.get('status_code')}"
+                    )
+                    raise PyCupraClientRequestForbidden(
+                        f"garage/vehicles API endpoint responded with error, HTTP status code: {response.get('status_code')}"
+                    )
         except Exception:
             raise
 
@@ -1274,6 +1287,13 @@ class Connection:
                 data["capabilities"] = response.get("capabilities")
                 data["platform"] = response.get("platform", "MOD3")
                 data["capabilitiesQueriedOn"] = response.get("queriedOn", "")
+            elif response.get("status_code", 0) == 403:
+                self._LOGGER.warning(
+                    f"Capabilities API endpoint responded with error, HTTP status code: {response.get('status_code')}"
+                )
+                raise PyCupraClientRequestForbidden(
+                    f"Capabilities API endpoint responded with error, HTTP status code: {response.get('status_code')}"
+                )
             elif response.get("status_code", {}):
                 self._LOGGER.warning(
                     f"Could not fetch capabilities information, HTTP status code: {response.get('status_code')}"
@@ -1309,6 +1329,8 @@ class Connection:
                 self._LOGGER.info(
                     "Unhandled error while trying to fetch lock/unlock enablement information"
                 )
+        except PyCupraClientRequestForbidden:
+            raise
         except Exception as error:
             self._LOGGER.warning(
                 f"Could not fetch capabilities information, error: {error}"

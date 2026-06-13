@@ -106,6 +106,15 @@ class PyCupraServiceUnavailable(Exception):
         self.status = status
 
 
+class PyCupraClientRequestForbidden(Exception):
+    """Raised when a API responds with 403"""
+
+    def __init__(self, status):
+        """Initialize exception"""
+        super(PyCupraClientRequestForbidden, self).__init__(status)
+        self.status = status
+
+
 class PyCupraEUDAPermissionExpiredException(Exception):
     """Raised when EUDA server reports that the permission is not valid"""
 

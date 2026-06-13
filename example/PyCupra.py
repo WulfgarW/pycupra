@@ -19,6 +19,7 @@ if currentframe is not None:
 try:
     from pycupra import Connection
     from pycupra import EUDAConnection
+    from pycupra.exceptions import PyCupraClientRequestForbidden
 except ModuleNotFoundError as e:
     print(f"Unable to import library: {e}")
     sys.exit(1)
@@ -536,7 +537,12 @@ async def main():
             print(f"\tPicture: {connection._userData.get('picture','')}")
             print("")
             print('Fetching vehicles associated with account.')
-            await connection.get_vehicles()
+            try:
+                await connection.get_vehicles()
+            except PyCupraClientRequestForbidden as e:
+                print(e)
+                print('Stopping program.')
+                return
 
             eudaRunning = False
             if credentials.get('useEudaFiles',False):
