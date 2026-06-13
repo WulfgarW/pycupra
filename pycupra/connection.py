@@ -158,6 +158,7 @@ class Connection:
         self._session_auth_password = password
         self._hass = hass
         self._session_tokens = {}
+        self._session_appcheck_token = ""
 
         self._vehicles = []
         self._userData = {}
@@ -225,6 +226,7 @@ class Connection:
                 tokens = json.loads(tokenString)
                 self._session_tokens[brand] = tokens
                 self._user_id = tokens["user_id"]
+                self._session_appcheck_token = tokens.get("appcheck_token","")
                 self.addToAnonymisationDict(self._user_id, "[USER_ID_ANONYMISED]")
                 return True
             self._LOGGER.info("No token file present. readTokenFile() returns False.")
@@ -240,6 +242,7 @@ class Connection:
             )
             return False
         self._session_tokens[brand]["user_id"] = self._user_id
+        self._session_tokens[brand]["appcheck_token"] = self._session_appcheck_token
         try:
             with open(self._tokenFile, "w") as f:
                 f.write(json.dumps(self._session_tokens[brand]))
@@ -782,11 +785,11 @@ class Connection:
                 if token_type in ["refresh_token", "access_token"]
             ):
                 self._session_tokens[client][token_type] = None
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None,
-            self.deleteTokenFile,
-        )
+        #loop = asyncio.get_running_loop()
+        #await loop.run_in_executor(
+        #    None,
+        #    self.deleteTokenFile,
+        #)
 
     # HTTP methods to API
     async def get(self, url, vin=""):
@@ -1115,6 +1118,9 @@ class Connection:
                 )
                 for vehicle in legacy_vehicles.get("vehicles"):
                     vin = vehicle.get("vin", "")
+                    self._session_headers["vin"]= vin
+                    if self._session_appcheck_token != "":
+                        self._session_headers["X-Firebase-AppCheck"] = self._session_appcheck_token
                     self.addToAnonymisationDict(vin, "[VIN_ANONYMISED]")
                     # response = await self.get(API_CAPABILITIES.format(APP_URI=APP_URI, userId=self._user_id, vin=vin))
                     # if response.get('capabilities', False):

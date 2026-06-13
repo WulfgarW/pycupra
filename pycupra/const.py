@@ -22,12 +22,12 @@ CLIENT_LIST = {
 
 
 XCLIENT_ID = "3c756d46-f1ba-4d78-9f9a-cff0d5292d51@apps_vw-dilab.com"
-XAPPVERSION_CUPRA = "2.15.0"
-XAPPVERSION_SEAT = "2.13.3"
+XAPPVERSION_CUPRA = "2.18.0"
+XAPPVERSION_SEAT = "2.18.0"
 XAPPNAME_CUPRA = "com.cupra.mycupra"
 XAPPNAME_SEAT = "com.seat.myseat"
-USER_AGENT_CUPRA = "OLACupra/2.15.0 (Android 12; sdk_gphone64_x86_64; Google) Mobile"
-USER_AGENT_SEAT = "OLASeat/2.13.3 (Android 12; sdk_gphone64_x86_64; Google) Mobile"
+USER_AGENT_CUPRA = "OLACupra/2.18.0 (Android 14; SM-G960F; samsung) Mobile" 
+USER_AGENT_SEAT = "OLASeat/2.18.0 (Android 14; SM-G960F; samsung) Mobile" 
 APP_URI = "https://ola.prod.code.seat.cloud.vwgroup.com"
 
 HEADERS_SESSION = {
@@ -480,3 +480,8 @@ EUDA_DATA_DICT = {
         "conversion": EUDA_DATA_CONVERSION_INT,
     },
 }
+
+EUDA_DATA_NO_SHOW_SET = (
+    EUDA_LONG_TERM_DATA_START_MILEAGE_KEY,
+    EUDA_SHORT_TERM_DATA_START_MILEAGE_KEY,
+)

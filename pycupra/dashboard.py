@@ -2948,7 +2948,7 @@ def create_eudaInstruments():
                 key=dictElem.get("key", None),
                 conversion=dictElem.get("conversion", None),
             )
-        instList.append(sensor)
+            instList.append(sensor)
 
     return instList
 
