@@ -381,23 +381,27 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         salt_str: str,
         raw_data: bytes,
     ) -> bytes:
-        crypto_key = urlsafe_b64decode(crypto_key_str.encode("ascii"))
-        salt = urlsafe_b64decode(salt_str.encode("ascii"))
-        der_data_str = credentials["keys"]["private"]
-        der_data = urlsafe_b64decode(der_data_str.encode("ascii") + b"========")
-        secret_str = credentials["keys"]["secret"]
-        secret = urlsafe_b64decode(secret_str.encode("ascii") + b"========")
-        privkey = load_der_private_key(
-            der_data, password=None, backend=default_backend()
-        )
-        decrypted = http_decrypt(
-            raw_data,
-            salt=salt,
-            private_key=privkey,
-            dh=crypto_key,
-            version="aesgcm",
-            auth_secret=secret,
-        )
+        try:
+            crypto_key = urlsafe_b64decode(crypto_key_str.encode("ascii"))
+            salt = urlsafe_b64decode(salt_str.encode("ascii"))
+            der_data_str = credentials["keys"]["private"]
+            der_data = urlsafe_b64decode(der_data_str.encode("ascii") + b"========")
+            secret_str = credentials["keys"]["secret"]
+            secret = urlsafe_b64decode(secret_str.encode("ascii") + b"========")
+            privkey = load_der_private_key(
+                der_data, password=None, backend=default_backend()
+            )
+            decrypted = http_decrypt(
+                raw_data,
+                salt=salt,
+                private_key=privkey,
+                dh=crypto_key,
+                version="aesgcm",
+                auth_secret=secret,
+            )
+        except Exception as e:
+            _logger.debug("Error in decrypt_raw_data.  Error=%s", e)
+            decrypted = b""
         return decrypted
 
     def _app_data_by_key(

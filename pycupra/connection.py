@@ -29,7 +29,7 @@ from json import dumps as to_json
 from jwt.exceptions import ExpiredSignatureError
 import aiohttp
 from bs4 import BeautifulSoup
-from base64 import b64encode, urlsafe_b64encode
+from base64 import b64encode, urlsafe_b64encode, urlsafe_b64decode
 from .utilities import json_loads
 from .vehicle import Vehicle
 from .exceptions import (
@@ -2529,6 +2529,7 @@ class Connection:
                         self._LOGGER.warning("Tokens could not be verified!")
                 for token in tokens:
                     self._session_tokens[client][token] = tokens[token]
+                self.decodeAppCheckToken(self._session_appcheck_token)
                 return True
             elif response.status == 400:
                 error = await response.json()
@@ -2611,6 +2612,28 @@ class Connection:
             except Exception:
                 raise PyCupraException(f'Failed to set token for "{client}"')
             return True
+        
+    def decodeAppCheckToken(self, token: str):
+        if token == "":
+            # self._LOGGER.debug("In decodeAppCheckToken. appcheck_token is empty, nothing to decode.")
+            return
+        try:
+            # Split the token by '.' and decode each component from base64
+            components = [urlsafe_b64decode(f"{s}==") for s in token.split(".")]
+            # Attempt to parse the payload (second component) as JSON
+            payload = components[1].decode("utf-8")
+            payload = json.loads(payload)
+
+            if isinstance(payload, dict):
+                unixTimestamp = payload.get("exp",0)
+                self._LOGGER.info(f"Decoded appcheck_token. It expires at {datetime.fromtimestamp(unixTimestamp)}.")
+
+        except Exception as e:
+            # If there's an error during parsing, ignore it and return the payload as is
+            self._LOGGER.debug("In decodeAppCheckToken. Error during decoding. Error: ", e)
+            pass
+        return
+
 
     def readSumTripStatisticsFile(self, vin: str, sumType: str):
         try:
