@@ -4,6 +4,7 @@
 # Extract information from data files downloaded from the EU Data Act portal of Volkswagen group.
 import logging
 from datetime import datetime
+from typing import Any
 
 from .const import (
     EUDA_DATA_CONVERSION_FLOAT,
@@ -103,35 +104,86 @@ class EUDAVehicle:
         """Return model year"""
         return "unknown"
 
-    def getEUDADataFieldValue(self, key=None, conversion=None) -> any:
+    def getEUDADataFieldValue(self, key=None, conversion=None) -> Any:
         """Return value of an EUDA data field identified by key."""
+        if key == "00000000-0000-0000-0000-0000":
+            attrs = self.getEUDADataAllUndefinedFields
+            return len(attrs)
+        elif key == "01000000-0000-0000-0000-0000":
+            return self.getEUDAFileTimestamp
+        elif key.startswith("10000000-0000") or key.startswith("11000000-0000"):
+            if key.startswith("10000000-0000"):
+                tripSum = self.getLatestTripSumValues("day")
+            else:
+                tripSum = self.getLatestTripSumValues("month")
+            if key.endswith("0000"):
+                return tripSum.get("startMileage", 0)
+            elif key.endswith("0001"):
+                return tripSum.get("fuelConsumption", 0)/10
+            elif key.endswith("0002"):
+                return tripSum.get("electricConsumption", 0)/10
+            elif key.endswith("0003"):
+                return tripSum.get("gasConsumption", 0)/10
+            elif key.endswith("0004"):
+                return tripSum.get("travelTime", 0)
+            elif key.endswith("0005"):
+                return tripSum.get("distance", 0)
+            elif key.endswith("0006"):
+                return tripSum.get("tripEnd", 0)
+            else:
+                self._LOGGER.warning(
+                    f"Unknown trip sum value key {key}."
+                )
+                return tripSum
         for element in self.currentData.get("Data", []):
             if element.get("key", "") == key:
                 if "value" in element:
-                    if conversion == None:
+                    if conversion is None:
                         return element.get("value", "")
                     elif conversion == EUDA_DATA_CONVERSION_FLOAT:
                         return float(element.get("value", "0"))
                     elif conversion == EUDA_DATA_CONVERSION_INT:
+                        if key == "cf28f7d9-6201-30b8-82e5-a461968d30dc" and int(element.get("value", "0")) == 65535:
+                            return -1
+                        elif key == "7405c11f-4d20-36d2-8381-18364aa1f444": # value of battery_state_report.remaining_charging_time_complete comes with a unit
+                            value = element.get("value", "0s")
+                            try:
+                                if value.find("s") > 0:
+                                    return int(int(value[0:value.find("s")])/60)
+                                elif value.find("min") > 0:
+                                    return int(value[0:value.find("min")])
+                                else:
+                                    return int(value)
+                            except Exception as e:
+                                self._LOGGER.warning(
+                                    f"Failed to extract numerical value from value {value} for key {key}. Error {e}"
+                                    )
+                            return -1
+                        elif element.get("value", "0") == "":
+                            return 0
                         return int(element.get("value", "0"))
                     elif conversion == EUDA_DATA_CONVERSION_INT_INVERT:
                         return -int(element.get("value", "0"))
                     elif conversion == EUDA_DATA_CONVERSION_BOOL:
                         if element.get("value", "") == "true":
                             return True
-                        if element.get("value", "") == "on":
+                        elif element.get("value", "") == "on":
                             return True
-                        if element.get("value", "") == "locked":
+                        elif element.get("value", "") == "locked":
                             return True
-                        if element.get("value", "") == "connected":
+                        elif element.get("value", "") == "connected":
                             return True
-                        if element.get("value", "") == "charging":
+                        elif element.get("value", "") == "charging":
                             return True
-                        if element.get("value", "") == "1" and element.get("dataFieldName", "").startswith("parking_brake"):
+                        elif element.get("value", "") == "1" and element.get("dataFieldName", "").startswith("parking_brake"):
                             return True
-                        if element.get("value", "") == "3" and element.get("dataFieldName", "").startswith("open_state"):
+                        elif element.get("value", "") == "3" and element.get("dataFieldName", "").startswith("open_state"):
                             return True
-                        if element.get("value", "") == "3" and "window_lifter" in element.get("dataFieldName", ""):
+                        elif element.get("value", "") == "3" and element.get("dataFieldName", "").startswith("state_sunroof"):
+                            return True
+                        elif element.get("value", "") in ("3", "4", "5") and element.get("dataFieldName", "").startswith("parking_lights"):
+                            return True
+                        elif element.get("value", "") == "3" and "window_lifter" in element.get("dataFieldName", ""):
                             return True
                     elif conversion == EUDA_DATA_CONVERSION_DIVIDE_BY_10:
                         return int(element.get("value", "0")) / 10
@@ -157,6 +209,12 @@ class EUDAVehicle:
 
     def isEUDADataFieldSupported(self, key=None) -> bool:
         """Return true if the EUDA data field identified by key is supported."""
+        if key == "00000000-0000-0000-0000-0000":
+            return True
+        elif key == "01000000-0000-0000-0000-0000" and self.currentData != {}:
+            return True
+        elif (key.startswith("10000000-0000") or key.startswith("11000000-0000")) and self.tripData != {}:
+            return True
         for element in self.currentData.get("Data", []):
             if (
                 element.get("key", "")
@@ -166,6 +224,13 @@ class EUDAVehicle:
                     return True
         return False
 
+    @property
+    def getEUDAFileTimestamp(self) -> datetime:
+        """Return timestamp form the newest EUDA file (from the filename)."""
+        if self.currentData.get("timeStamp", "") != "":
+                return self.currentData.get("timeStamp", "")
+        return datetime.min
+
     def getEUDADataFieldTimestamp(self, key=None) -> str:
         """Return timestamp for an EUDA data field identified by key."""
         for element in self.currentData.get("Data", []):
@@ -174,6 +239,7 @@ class EUDAVehicle:
                     return element.get("timestampUtc", "unknown")
         return "unknown"
 
+    @property
     def getEUDADataAllUndefinedFields(self) -> dict:
         """Return a dictionary of all EUDA data fields found in EUDA files but not defined in EUDA_DATA_DICT."""
         undefinedFields = {}
@@ -185,16 +251,16 @@ class EUDAVehicle:
                     undefinedFields[element.get("key", "-dataFieldNameMissing-")] = element.get("value", "")
         return dict(sorted(undefinedFields.items()))
 
-    def getLatestTripSumValues(self, sumType="day") -> str:
+    def getLatestTripSumValues(self, sumType="day") -> dict:
         """Return the calculated latest daily sum values from the trip history."""
         if sumType == "month":
             if self._tripSumDictMonth == {}:
-                self._LOGGER.warning(f"tripSumDictMonth is empty when getLatestTripSumValues is called. Recalculating.")
+                self._LOGGER.warning("tripSumDictMonth is empty when getLatestTripSumValues is called. Recalculating.")
                 self.calcLatestTripSumValues(sumType=sumType)
             return self._tripSumDictMonth
         else:
             if self._tripSumDictDay == {}:
-                self._LOGGER.warning(f"tripSumDictDay is empty when getLatestTripSumValues is called. Recalculating.")
+                self._LOGGER.warning("tripSumDictDay is empty when getLatestTripSumValues is called. Recalculating.")
                 self.calcLatestTripSumValues(sumType=sumType)
             return self._tripSumDictDay
 

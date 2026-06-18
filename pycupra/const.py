@@ -1,5 +1,7 @@
 """Constants for pycupra library."""
 
+DATA_DIRECTORY = "pycupra_data"
+
 BASE_SESSION = "https://ola.prod.code.seat.cloud.vwgroup.com"
 BASE_AUTH = "https://identity.vwgroup.io"
 

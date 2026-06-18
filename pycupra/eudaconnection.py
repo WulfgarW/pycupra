@@ -39,6 +39,7 @@ from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT, METH_DELETE
 from http import cookies
 
 from .const import (
+    DATA_DIRECTORY,
     AUTH_OIDCONFIG,
     EUDA_CLIENT_LIST,
     # EUDA_AUTH_OIDC,
@@ -66,7 +67,7 @@ version_info >= (3, 0) or exit("Python 3 required")
 
 _LOGGER = logging.getLogger(__name__)
 BRAND_CUPRA = "cupra"
-TIMEOUT = timedelta(seconds=90)
+TIMEOUT = timedelta(seconds=30)
 loginInProgress = False
 
 
@@ -130,9 +131,9 @@ class EUDAConnection:
         self.tripData: dict = {}
         try:
             if self._hass:
-                self._dataBasePath = self._hass.config.path("pycupra_data")
+                self._dataBasePath = self._hass.config.path(DATA_DIRECTORY)
             else:
-                self._dataBasePath = os.path.join(".", "pycupra_data")
+                self._dataBasePath = os.path.join(".", DATA_DIRECTORY)
             if not os.path.exists(self._dataBasePath):
                 self._LOGGER.error(
                     f"Directory {self._dataBasePath} does not exist. This should only happen once. Creating it."
@@ -703,6 +704,10 @@ class EUDAConnection:
                 self._LOGGER.error(
                     'Received "Bad Request" from server. The request might be malformed or not implemented correctly for this vehicle.'
                 )
+            elif error.status == 404:
+                self._LOGGER.debug(
+                    'Received "Not found". Possibly the request was looking for something, that is not available.'
+                )
             elif error.status == 412:
                 self._LOGGER.debug(
                     'Received "Pre-condition failed". Service might be temporarily unavailable.'
@@ -715,17 +720,21 @@ class EUDAConnection:
                 self._LOGGER.info(
                     'Received "Bad gateway". Either the endpoint is temporarily unavailable or not supported for this vehicle.'
                 )
+            elif error.status == 503:
+                self._LOGGER.info(
+                    'Received "Service unavailable". Possibly the server is overloaded or down for maintenance.'
+                )
             elif 400 <= error.status <= 499:
                 self._LOGGER.error(
-                    "Received unhandled error indicating client-side problem.\nRestart or try again later."
+                    f"Received unhandled error {error.status} indicating client-side problem.\nRestart or try again later."
                 )
             elif 500 <= error.status <= 599:
                 self._LOGGER.error(
-                    "Received unhandled error indicating server-side problem.\nThe service might be temporarily unavailable."
+                    f"Received unhandled error {error.status} indicating server-side problem.\nThe service might be temporarily unavailable."
                 )
             else:
                 self._LOGGER.error(
-                    "Received unhandled error while requesting API endpoint."
+                    f"Received unhandled error {error.status} while requesting API endpoint."
                 )
             self._LOGGER.debug(self.anonymise(f"HTTP request information: {data}"))
             return data
@@ -1010,16 +1019,16 @@ class EUDAConnection:
                     f"Could not find a customised data request for your account, HTTP status code: {response.get('status_code')}. Did you forget to create one?"
                 )
             elif response.get("status_code", {}):
-                self._LOGGER.warning(
-                    f"Could not fetch data cluster information, HTTP status code: {response.get('status_code')}"
+                self._LOGGER.info(
+                    f"Could not fetch data cluster information for cluster type '{type}', HTTP status code: {response.get('status_code')}"
                 )
             else:
                 self._LOGGER.info(
-                    "Unhandled error while trying to fetch data cluster information"
+                    f"Unhandled error while trying to fetch data cluster information for cluster type '{type}'."
                 )
         except Exception as error:
             self._LOGGER.error(
-                f"Could not fetch data cluster information, error: {error}"
+                f"Could not fetch data cluster information for cluster type '{type}'. Error: {error}"
             )
             raise PyCupraInvalidRequestException(
                 "Unable to fetch data cluster information"
@@ -1150,7 +1159,7 @@ class EUDAConnection:
             return True
         except Exception as e:
             self._LOGGER.warning(f'readZipFile() not successful. Error: {e}')
-            return None, ''
+            return False
 
     async def archiveFiles(self) -> bool:
         """Archive EUDA files older than 10 days in the archive folder"""
@@ -1465,7 +1474,7 @@ class EUDAConnection:
                                 element.get("value", "0")
                             )
                     # tripElement['tripEnd']=timeStamp
-                    if len(tripElement) < 6:
+                    if len(tripElement) < 5:
                         self._LOGGER.debug(
                             self.anonymise(
                                 f"tripElement for vehicle {vehicle.vin} has less entries than expected. Only {len(tripElement)}. {tripElement}"
@@ -1646,7 +1655,7 @@ class EUDAConnection:
                     )
                 )
             else:
-                self._LOGGER.debug(f"In getData. Number of vehicles is zero.")
+                self._LOGGER.debug("In getData. Number of vehicles is zero.")
 
             for vehicle in self.vehicles:
                 await self.getDataForOneVehicle(vehicle)
@@ -1662,8 +1671,8 @@ class EUDAConnection:
             await asyncio.sleep(2)
             data = await self.getDatacluster(EUDA_BASE_URL, vehicle.vin, "all")
             if data == {}:
-                self._LOGGER.info(
-                    "No data cluster of type 'all' found. Can be ignored, because data cluster 'all' is not necessary at the moment."
+                self._LOGGER.debug(
+                    "No data cluster of type 'all' found. Can be ignored, because data cluster 'all' is not necessary."
                 )
             else:
                 vehicle._states.update(data)
@@ -1677,10 +1686,10 @@ class EUDAConnection:
             # Reading information for data cluster 'partial'
             identifier_partial = ""
             counter = 0
-            while counter <5 and identifier_partial == "":
+            while counter <3 and identifier_partial == "":
                 if counter>0:
                     await asyncio.sleep(2)
-                    self._LOGGER.debug(f"Trying to read information about data cluster of type 'partial' again.")
+                    self._LOGGER.debug("Trying to read information about data cluster of type 'partial' again.")
                 data = await self.getDatacluster(EUDA_BASE_URL, vehicle.vin, "partial")
                 if data == {}:
                     self._LOGGER.error("No data cluster of type 'partial' found.")
@@ -1701,11 +1710,11 @@ class EUDAConnection:
                 return False
 
             counter = 0
-            fileList = {}
-            while counter <5 and fileList.get("availableDataFiles", []) == []:
+            fileList: dict = {}
+            while counter <3 and fileList.get("availableDataFiles", []) == []:
                 if counter>0:
                     await asyncio.sleep(2)
-                    self._LOGGER.debug(f"Trying to read list of available files again.")
+                    self._LOGGER.debug("Trying to read list of available files again.")
                 fileList = await self.getListOfAvailableFiles(
                     EUDA_BASE_URL, vehicle.vin, identifier_partial, "partial"
                 )

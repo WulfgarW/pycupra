@@ -6,7 +6,14 @@ Fork of https://github.com/Farfar/seatconnect which in turn is a fork of:
 Fork of https://github.com/lendy007/skodaconnect which in turn is a fork of:
 https://github.com/robinostlund/volkswagencarnet
 
-## Information
+## !!! Important information !!!
+
+Due to the API changes on June 8th 2026, PyCupra is blocked by most of the API endpoints, because it is lacking an appcheck_token, that it cannot generate itself.
+The pycupra package catches the http-403 error and raises an exception. 
+
+As long as that happens, you cannot use the pycupra package.
+
+## What's the main functionality of PyCupra?
 
 Retrieve information about your Cupra/Seat vehicle from the Cupra/Seat portal.
 
