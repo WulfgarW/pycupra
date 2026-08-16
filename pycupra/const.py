@@ -378,7 +378,7 @@ EUDA_DATA_DICT = {
         "name": "Parking brake",
         "icon": "mdi:car-brake-parking",
         #"unit": "%",
-        "device_class": "door",
+        #"device_class": "door",
         "key": "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48",
         "conversion": EUDA_DATA_CONVERSION_BOOL,
     },
