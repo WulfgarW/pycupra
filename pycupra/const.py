@@ -24,12 +24,12 @@ CLIENT_LIST = {
 
 
 XCLIENT_ID = "3c756d46-f1ba-4d78-9f9a-cff0d5292d51@apps_vw-dilab.com"
-XAPPVERSION_CUPRA = "2.18.0"
-XAPPVERSION_SEAT = "2.18.0"
+XAPPVERSION_CUPRA = "2.20.3"
+XAPPVERSION_SEAT = "2.20.2"
 XAPPNAME_CUPRA = "com.cupra.mycupra"
 XAPPNAME_SEAT = "com.seat.myseat"
-USER_AGENT_CUPRA = "OLACupra/2.18.0 (Android 14; SM-G960F; samsung) Mobile" 
-USER_AGENT_SEAT = "OLASeat/2.18.0 (Android 14; SM-G960F; samsung) Mobile" 
+USER_AGENT_CUPRA = "OLACupra/2.20.3 (Android 14; SM-G960F; samsung) Mobile" 
+USER_AGENT_SEAT = "OLASeat/2.20.2 (Android 14; SM-G960F; samsung) Mobile" 
 APP_URI = "https://ola.prod.code.seat.cloud.vwgroup.com"
 
 HEADERS_SESSION = {
@@ -275,23 +275,23 @@ EUDA_CLIENT_LIST= {
 
 EUDA_HEADERS_SESSION = {
     "Connection": "keep-alive",
-    "Content-Type": "*/*",  #'application/json',
+    "Content-Type": "application/json", #"*/*",  
     "Accept-charset": "UTF-8",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
     "Referer": "https://eu-data-act.drivesomethinggreater.com/de/en/user.html",
     #'User-ID': '?????', # to be set later
     "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Accept-Language": "de,en-US;q=0.7,en;q=0.3",
+    "Accept-Language": "de,en-US;q=0.9,en;q=0.8",
 }
 
 EUDA_HEADERS_AUTH = {
     "Content-Type": "application/x-www-form-urlencoded",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "Referer": "https://eu-data-act.drivesomethinggreater.com/de/en/login.html",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
 }
 
 # Urls for EUDA connection

@@ -545,6 +545,11 @@ async def main():
                 return
 
             eudaRunning = False
+
+            # Checking for new public API 
+            #await connection.set_token(connection._session_auth_brand)
+            #await connection.get("https://public.api.connect.skoda-auto.cz/api/v1/vehicles/{vin}".format(vin=connection.vehicles[0].vin))
+                                 
             if credentials.get('useEudaFiles',False):
                 eudaSession= ClientSession(headers={'Connection': 'keep-alive'})
                 print('')

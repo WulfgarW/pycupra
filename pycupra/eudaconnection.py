@@ -42,8 +42,8 @@ from .const import (
     DATA_DIRECTORY,
     AUTH_OIDCONFIG,
     EUDA_CLIENT_LIST,
-    # EUDA_AUTH_OIDC,
-    # EUDA_AUTH_ISSUER,
+    #EUDA_AUTH_OIDC,
+    #EUDA_AUTH_ISSUER,
     EUDA_HEADERS_AUTH,
     EUDA_HEADERS_SESSION,
     EUDA_BASE_URL,
@@ -386,8 +386,9 @@ class EUDAConnection:
             self._clear_cookies()
 
             req = await self._session.get(
-                url=location, headers=self._session_auth_headers, allow_redirects=False
+                url=location, headers=self._session_auth_headers, allow_redirects=False, 
             )
+            self._session_cookies.update(req.cookies)
             if req.headers.get("Location", False):
                 ref = req.headers.get("Location", "")
                 if "error" in ref:
