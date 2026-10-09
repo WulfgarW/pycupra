@@ -123,6 +123,13 @@ class PyCupraEUDAPermissionExpiredException(Exception):
         super(PyCupraEUDAPermissionExpiredException, self).__init__(status)
         self.status = status
 
+class PyCupraReadTripStatisticsFileException(Exception):
+    """Raised when reading the trip statistics file fails with unknown reason"""
+
+    def __init__(self, status):
+        """Initialize exception"""
+        super(PyCupraReadTripStatisticsFileException, self).__init__(status)
+        self.status = status
 
 # To make sure, older versions of homeassistant-pycupra also work with pycupra v0.2.14, the old SeatExceptions used by __init__.py are still there
 # (will be deleted in the future)
