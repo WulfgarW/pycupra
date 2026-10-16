@@ -561,18 +561,34 @@ class Connection:
                 )
                 token_data = await req.json()
             self._session_tokens[client] = {}
+            # The token endpoint reports failures via "error"/"error_description".
+            # Those keys don't contain "_token", so after the filter below
+            # self._session_tokens[client] can never hold them and the old error
+            # check was dead code: the error was swallowed, an empty token set was
+            # written to the token file and the next login failed with
+            # "Could not refresh tokens: 'refresh_token'". Check the raw response.
+            if isinstance(token_data, dict) and "error" in token_data:
+                errorTxt = token_data.get("error", "")
+                error_description = token_data.get("error_description", "")
+                self._LOGGER.warning(
+                    f"Token endpoint for {client} returned HTTP {req.status} with error "
+                    f"'{errorTxt}'" + (f": {error_description}" if error_description else "")
+                )
+                if error_description:
+                    raise PyCupraException(f"{errorTxt} - {error_description}")
+                raise PyCupraException(errorTxt)
             for key in token_data:
                 if "_token" in key:
                     self._session_tokens[client][key] = token_data[key]
-            if "error" in self._session_tokens[client]:
-                errorTxt = self._session_tokens[client].get("error", "")
-                if "error_description" in self._session_tokens[client]:
-                    error_description = self._session_tokens[client].get(
-                        "error_description", ""
-                    )
-                    raise PyCupraException(f"{errorTxt} - {error_description}")
-                else:
-                    raise PyCupraException(errorTxt)
+            if "access_token" not in self._session_tokens[client]:
+                # No usable tokens -> do not overwrite the token file (would wipe a
+                # still valid refresh_token). Surface the response fields instead.
+                fields = (sorted(token_data) if isinstance(token_data, dict)
+                          else type(token_data).__name__)
+                raise PyCupraException(
+                    f"Token endpoint for {client} returned no access_token "
+                    f"(HTTP {req.status}, fields: {fields}). Token file left unchanged."
+                )
             if self._session_fulldebug:
                 for key in self._session_tokens.get(client, {}):
                     if "token" in key:
