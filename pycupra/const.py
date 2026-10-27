@@ -134,6 +134,7 @@ AUTH_OIDCONFIG = "https://identity.vwgroup.io/.well-known/openid-configuration" 
 AUTH_TOKEN = "https://identity.vwgroup.io/oidc/v1/token"  # Endpoint for exchanging code for token
 AUTH_REFRESH = "https://ola.prod.code.seat.cloud.vwgroup.com/authorization/api/v1/token"  # Endpoint for token refresh (also used for exchanging code for token for Seat)
 AUTH_TOKENKEYS = "https://identity.vwgroup.io/oidc/v1/keys"  # Signing keys for tokens
+AUTH_USERINFO = "https://identity-userinfo.vwgroup.io/oidc/userinfo"
 
 # API endpoints
 API_MBB_STATUSDATA = (

@@ -58,9 +58,11 @@ from .const import (
     BASE_SESSION,
     CLIENT_LIST,
     AUTH_OIDCONFIG,
+    BASE_AUTH,
     AUTH_TOKEN,
     AUTH_TOKENKEYS,
     AUTH_REFRESH,
+    AUTH_USERINFO,
     APP_URI,
     API_MBB_STATUSDATA,
     API_PERSONAL_DATA,
@@ -366,10 +368,11 @@ class Connection:
                 self._LOGGER.debug(
                     f"Get request to {AUTH_OIDCONFIG} was not successful. Response: {req}"
                 )
+                loginInProgress = False
                 return False
             response_data = await req.json()
             self._LOGGER.debug(
-                f"Get request to {AUTH_OIDCONFIG} was not successful. Response data: {response_data}"
+                f"Get request to {AUTH_OIDCONFIG} was successful. Response data: {response_data}"
             )
             authorizationEndpoint = response_data["authorization_endpoint"]
             authissuer = response_data["issuer"]
@@ -402,6 +405,10 @@ class Connection:
                 )
                 if req.headers.get("Location", False):
                     ref = req.headers.get("Location", "")
+                    if ref.startswith("/u/login"):
+                        # if location is missing the domain
+                        ref = BASE_AUTH + ref
+                        self._LOGGER.debug(f"Attached host url to relative url. Now: {ref}")
                     if "error" in ref:
                         error = parse_qs(urlparse(ref).query).get("error", "")[0]
                         if "error_description" in ref:
@@ -430,7 +437,7 @@ class Connection:
                 raise PyCupraException(error)
 
             # If we need to sign in (first token)
-            if "signin-service" in ref:
+            if True: #"signin-service" in ref:
                 self._LOGGER.debug("Got redirect to signin-service")
                 location = await self._signin_service(
                     req, authissuer, authorizationEndpoint, client
@@ -445,6 +452,8 @@ class Connection:
                 while not location.startswith(CLIENT_LIST[client].get("REDIRECT_URL")):
                     if location is None:
                         raise PyCupraException("Login failed")
+                    if location.startswith("/"):
+                        location = BASE_AUTH + location
                     if "error" in location:
                         errorTxt = parse_qs(urlparse(location).query).get("error", "")[
                             0
@@ -607,6 +616,22 @@ class Connection:
                 self._LOGGER.warning(
                     f"Token for {client} could not be verified, verification returned {verify}."
                 )
+
+            try:
+                # For the new login (since 26.10.26), the user_id has to be read with a GET request 
+                await self.set_token(self._session_auth_brand)
+                response = await self.get(AUTH_USERINFO)
+                if response.get("brandid", False):
+                    self._user_id = response.get("brandid", False)
+                    self.addToAnonymisationDict(
+                        self._user_id, "[USER_ID_ANONYMISED]"
+                    )
+                    # self._LOGGER.debug('Got user_id: %s' % self._user_id)
+                    self._session_token_headers[client]["User-ID"] = self._user_id
+                    self._session_headers["User-ID"] = self._user_id
+            except Exception:
+                self._LOGGER.debug("Could not fetch personal information.")
+
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self.writeTokenFile, client)
         except PyCupraEULAException:
@@ -656,6 +681,54 @@ class Connection:
         loginInProgress = False
         return True
 
+    async def _signin_service_seat(
+        self,
+        html: aiohttp.ClientResponse,
+        authissuer: str,
+        authorizationEndpoint: str,
+        client: str,
+    ) -> Any:
+        """Method to signin to Connect portal."""
+        # Extract login form and extract attributes
+        try:
+            response_data = await html.text()
+            responseSoup = BeautifulSoup(response_data, "html.parser")
+            form_data = dict()
+            if responseSoup is None:
+                raise PyCupraLoginFailedException(
+                    "Login failed, server did not return a login form"
+                )
+            pageElement: Any = responseSoup.find("form") #class="c92935a96 c35432a7f")
+            for t in pageElement.find_all("input", type="hidden"):
+                if self._session_fulldebug:
+                    self._LOGGER.debug(
+                        f"Extracted form attribute: {t['name'], t['value']}"
+                    )
+                form_data[t["name"]] = t["value"]
+            form_data["username"] = self._session_auth_username
+            form_data["password"] = self._session_auth_password
+            pe_url =html.url.human_repr()
+
+        except Exception as e:
+            self._LOGGER.error(f"Failed to extract user login form. Error: {e}")
+            raise
+
+        # POST email
+        self._session_auth_headers["Referer"] = CLIENT_LIST[client].get("REDIRECT_URL") #authorizationEndpoint
+        self._session_auth_headers["Origin"] = authissuer
+        self._LOGGER.debug(
+            self.anonymise(
+                f"Start authorization for user {self._session_auth_username}"
+            )
+        )
+        req = await self._session.post(
+            url=pe_url, headers=self._session_auth_headers.get(client), data=form_data,
+            allow_redirects=False,
+        )
+        #if req.status != 200:
+        #    raise PyCupraException("Authorization request failed")
+        return req.headers.get("Location", None)
+
     async def _signin_service(
         self, html, authissuer, authorizationEndpoint, client=BRAND_CUPRA
     ):
@@ -669,6 +742,10 @@ class Connection:
                 raise PyCupraLoginFailedException(
                     "Login failed, server did not return a login form"
                 )
+            if responseSoup.find("form", id="emailPasswordForm") is None and self._session_auth_brand in ("cupra", "seat"):
+                self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
+                return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
+
             for t in responseSoup.find("form", id="emailPasswordForm").find_all(
                 "input", type="hidden"
             ):
