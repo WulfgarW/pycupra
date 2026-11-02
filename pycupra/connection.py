@@ -437,9 +437,15 @@ class Connection:
                 raise PyCupraException(error)
 
             # If we need to sign in (first token)
-            if True: #"signin-service" in ref:
+            if "signin-service" in ref:
                 self._LOGGER.debug("Got redirect to signin-service")
+                # location = await self._signin_service(req, EUDA_AUTH_ISSUER, EUDA_AUTH_OIDC)
                 location = await self._signin_service(
+                    req, authissuer, authorizationEndpoint, client
+                )
+            elif "data-form-primary" in await req.text():
+                self._LOGGER.debug("Got redirect to new login form")
+                location = await self._signin_service_seat(
                     req, authissuer, authorizationEndpoint, client
                 )
             else:
@@ -477,6 +483,11 @@ class Connection:
                     if "consent/marketing" in location:
                         raise PyCupraMarketingConsentException(
                             'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        )
+                    if "consent" in location:
+                        self._loginError = 'You have to allow the API the access to some of your data first. Check in the MyCupra/MySeat app.'
+                        raise PyCupraEULAException(
+                            'You have to allow the API the access to some of your data first. Check in the MyCupra/MySeat app.'
                         )
                     if (
                         "user_id" in location
@@ -635,9 +646,14 @@ class Connection:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self.writeTokenFile, client)
         except PyCupraEULAException:
-            self._LOGGER.warning(
-                'Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
-            )
+            if "consent" in location:
+                self._LOGGER.warning(
+                    'You have to allow the API the access to some of your data first. Check in the MyCupra/MySeat app.'
+                )
+            else:
+                self._LOGGER.warning(
+                    'Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
+                )
             loginInProgress = False
             raise
         except PyCupraMarketingConsentException:
@@ -725,8 +741,8 @@ class Connection:
             url=pe_url, headers=self._session_auth_headers.get(client), data=form_data,
             allow_redirects=False,
         )
-        #if req.status != 200:
-        #    raise PyCupraException("Authorization request failed")
+        if req.status >= 400:
+            raise PyCupraException("Authorization request failed")
         return req.headers.get("Location", None)
 
     async def _signin_service(
@@ -742,9 +758,9 @@ class Connection:
                 raise PyCupraLoginFailedException(
                     "Login failed, server did not return a login form"
                 )
-            if responseSoup.find("form", id="emailPasswordForm") is None and self._session_auth_brand in ("cupra", "seat"):
-                self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
-                return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
+            #if responseSoup.find("form", id="emailPasswordForm") is None and self._session_auth_brand in ("cupra", "seat"):
+            #    self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
+            #    return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
 
             for t in responseSoup.find("form", id="emailPasswordForm").find_all(
                 "input", type="hidden"

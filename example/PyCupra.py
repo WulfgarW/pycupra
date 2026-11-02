@@ -809,6 +809,8 @@ async def main():
                 while True:
                     print(f"Sleeping for {6*INTERVAL} seconds")
                     await asyncio.sleep(6*INTERVAL)
+                    print(f"Status of firebase._pushClient.is_started()= {vehicle.firebase._pushClient.is_started()}. (Should be True)")
+                    # Checking for _is_started() makes sure, that the connection is reestablished, if it was closed
                     i=i+1
                     _LOGGER.debug(f'Round {i}')
 

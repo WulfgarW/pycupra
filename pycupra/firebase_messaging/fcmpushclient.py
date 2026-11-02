@@ -47,6 +47,16 @@ _logger = logging.getLogger(__name__)
 OnNotificationCallable = Callable[[dict[str, Any], str, Any], None]
 CredentialsUpdatedCallable = Callable[[dict[str, Any]], None]
 
+def _urlsafe_b64decode_padded(data: str) -> bytes:
+    """Decode urlsafe base64 that may be missing its '=' padding.
+
+    Webpush keys and the crypto-key/salt headers (RFC 8291) are transmitted
+    without padding. ``base64.urlsafe_b64decode`` raises ``binascii.Error``
+    (a ``ValueError`` subclass) on unpadded input, so restore the padding
+    before decoding.
+    """
+    return urlsafe_b64decode(data.encode("ascii") + b"=" * (-len(data) % 4))
+
 # MCS Message Types and Tags
 MCS_MESSAGE_TAG = {
     HeartbeatPing: 0,
@@ -382,12 +392,12 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         raw_data: bytes,
     ) -> bytes:
         try:
-            crypto_key = urlsafe_b64decode(crypto_key_str.encode("ascii"))
-            salt = urlsafe_b64decode(salt_str.encode("ascii"))
+            crypto_key = _urlsafe_b64decode_padded(crypto_key_str)
+            salt = _urlsafe_b64decode_padded(salt_str)
             der_data_str = credentials["keys"]["private"]
-            der_data = urlsafe_b64decode(der_data_str.encode("ascii") + b"========")
+            der_data = _urlsafe_b64decode_padded(der_data_str)
             secret_str = credentials["keys"]["secret"]
-            secret = urlsafe_b64decode(secret_str.encode("ascii") + b"========")
+            secret = _urlsafe_b64decode_padded(secret_str)
             privkey = load_der_private_key(
                 der_data, password=None, backend=default_backend()
             )
@@ -432,8 +442,20 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         ):
             # The deleted_messages message does not contain data.
             return
-        crypto_key = self._app_data_by_key(msg, "crypto-key")[3:]  # strip dh=
-        salt = self._app_data_by_key(msg, "encryption")[5:]  # strip salt=
+        # the crypto_key can contain several components separated by ';'.
+        crypto_key = ""
+        appDataComponents = self._app_data_by_key(msg, "crypto-key").split(";")
+        for component in appDataComponents:
+            if component.startswith("dh="):
+                crypto_key = component[3:]  # strip dh=
+                break
+        # the crypto_key can contain several components separated by ';'.
+        salt = ""
+        appDataComponents = self._app_data_by_key(msg, "encryption").split(";")
+        for component in appDataComponents:
+            if component.startswith("salt="):
+                salt = component[5:]  # strip salt=
+                break
         subtype = self._app_data_by_key(msg, "subtype")
         if TYPE_CHECKING:
             assert self.credentials

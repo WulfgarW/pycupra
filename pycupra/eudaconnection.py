@@ -288,10 +288,15 @@ class EUDAConnection:
                 loginInProgress = False
                 return False
             # If we need to sign in
-            if True: #"signin-service" in ref:
+            if "signin-service" in ref:
                 self._LOGGER.debug("Got redirect to signin-service")
                 # location = await self._signin_service(req, EUDA_AUTH_ISSUER, EUDA_AUTH_OIDC)
                 location = await self._signin_service(
+                    req, auth_issuer, auth_oidc, client
+                )
+            elif "data-form-primary" in await req.text():
+                self._LOGGER.debug("Got redirect to new login form")
+                location = await self._signin_service_seat(
                     req, auth_issuer, auth_oidc, client
                 )
             else:
@@ -337,6 +342,11 @@ class EUDAConnection:
                         raise PyCupraMarketingConsentException(
                             'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
                         )
+                    if "consent" in location:
+                        self._loginError = 'You have to allow the EUDA portal the access to some of your data first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        raise PyCupraEULAException(
+                            'You have to allow the EUDA portal the access to some of your data first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        )
                     if (
                         "user_id" in location
                     ):  # Get the user_id which is needed for some later requests
@@ -377,7 +387,6 @@ class EUDAConnection:
                 self._LOGGER.warning(
                     f"Running into login problems with location={location}"
                 )
-                loginInProgress = False
                 raise
             except Exception as e:
                 # If we get an unhandled exception it should be because we can't redirect to the EUDA_BASE_URL and thus we have our auth code
@@ -387,7 +396,6 @@ class EUDAConnection:
                     pass
                 else:
                     self._LOGGER.debug("Exception occured while logging in.")
-                    loginInProgress = False
                     raise PyCupraLoginFailedException(e)
 
             # Login at identity portal successful. Now following callback to user.html of EU Data Act portal
@@ -409,7 +417,6 @@ class EUDAConnection:
                         self._LOGGER.info(f"Unable to login, {error}")
                     else:
                         self._LOGGER.info("Unable to login.")
-                    loginInProgress = False
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -433,7 +440,6 @@ class EUDAConnection:
                         self._LOGGER.info(f"Unable to login, {error}")
                     else:
                         self._LOGGER.info("Unable to login.")
-                    loginInProgress = False
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -455,7 +461,6 @@ class EUDAConnection:
                         self._LOGGER.info(f"Unable to login, {error}")
                     else:
                         self._LOGGER.info("Unable to login.")
-                    loginInProgress = False
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -473,9 +478,14 @@ class EUDAConnection:
                 loginInProgress = False
                 return False
         except PyCupraEULAException:
-            self._LOGGER.warning(
-                'Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
-            )
+            if "consent" in location:
+                self._LOGGER.warning(
+                    'You have to allow the EUDA portal the access to some of your data first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                )
+            else:
+                self._LOGGER.warning(
+                    'Login failed, the terms and conditions might have been updated and need to be accepted. Login to  your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/" and accept the new terms before trying again'
+                )
             loginInProgress = False
             raise
         # except (PyCupraMarketingConsentException):
@@ -560,8 +570,8 @@ class EUDAConnection:
             url=pe_url, headers=self._session_auth_headers, data=form_data,
             allow_redirects=False,
         )
-        #if req.status != 200:
-        #    raise PyCupraException("Authorization request failed")
+        if req.status >= 400:
+            raise PyCupraException("Authorization request failed")
         return req.headers.get("Location", None)
 
     async def _signin_service(
@@ -582,9 +592,9 @@ class EUDAConnection:
                     "Login failed, server did not return a login form"
                 )
             pageElement: Any = responseSoup.find("form", id="emailPasswordForm")
-            if pageElement is None and self._session_auth_brand in ("cupra", "seat"):
-                self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
-                return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
+            #if pageElement is None and self._session_auth_brand in ("cupra", "seat"):
+            #    self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
+            #    return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
 
             for t in pageElement.find_all("input", type="hidden"):
                 if self._session_fulldebug:
