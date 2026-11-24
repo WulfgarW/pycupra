@@ -32,18 +32,19 @@ from .exceptions import (
     PyCupraMarketingConsentException,
     # PyCupraRequestInProgressException,
     # PyCupraServiceUnavailable,
-    PyCupraReadTripStatisticsFileException
+    PyCupraReadTripStatisticsFileException,
 )
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT, METH_DELETE
 from http import cookies
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .const import (
     DATA_DIRECTORY,
     AUTH_OIDCONFIG,
     EUDA_CLIENT_LIST,
-    #EUDA_AUTH_OIDC,
+    # EUDA_AUTH_OIDC,
     EUDA_AUTH_ISSUER,
     EUDA_HEADERS_AUTH,
     EUDA_HEADERS_SESSION,
@@ -96,6 +97,7 @@ class EUDAConnection:
             self._LOGGER = _LOGGER
 
         self._session = session
+        self._session_created = datetime.now(tz=None)
         self._lock = asyncio.Lock()
         self._session_fulldebug = fulldebug
         self._session_anonymise = anonymise
@@ -172,15 +174,27 @@ class EUDAConnection:
 
     # API login/logout/authorization
     async def doLogin(self, **data) -> bool:
-        """Login method, clean login or use token from file and refresh it"""
+        """Login method: clean login"""
         # Remove cookies and re-init session
-        self._clear_cookies()
         self._vehicles.clear()
-        self._session_headers = EUDA_HEADERS_SESSION.copy()
-        self._session_auth_headers = EUDA_HEADERS_AUTH.copy()
-
         # self._LOGGER.info('Initiating new login with user name and password.')
         return await self._authorize(self._session_auth_brand)
+
+    async def relogin(self) -> bool:
+        """Relogin method: Logout and relogin but do not clear the self._vehicles"""
+        try:
+            await self.logout()
+            if self._hass and self._session_created < (datetime.now(tz=None) - timedelta(hours=8)):
+                self._LOGGER.debug('Getting a new http session from hass.')
+                self._session.detach() # Close the current http session
+                self._session = async_create_clientsession(self._hass) # Get a new http session from hass
+                self._session_created = datetime.now(tz=None)
+            self._LOGGER.info('Initiating relogin with user name and password.')
+            return await self._authorize(self._session_auth_brand)
+        except Exception as e:
+            self._LOGGER.error(f"Failed to relogin. Error: {e}")
+            raise
+        return False
 
     async def _authorize(self, client: str = BRAND_CUPRA) -> bool:
         """ "Login" function. Authorize a certain client type and get cookies."""
@@ -200,6 +214,9 @@ class EUDAConnection:
             loginInProgress = True
 
             self._LOGGER.debug(f"Starting authorization process for client {client}")
+            self._clear_cookies() # Clearing cookies for a new login
+            self._session_headers = EUDA_HEADERS_SESSION.copy()
+            self._session_auth_headers = EUDA_HEADERS_AUTH.copy()
             req = await self._session.get(url=AUTH_OIDCONFIG)
             if req.status != 200:
                 self._LOGGER.debug(
@@ -248,9 +265,9 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get(
                             "error_description", ""
                         )[0]
-                        self._LOGGER.info(f"Unable to login, {error}")
+                        self._LOGGER.warning(f"Unable to login at step 1, {error}")
                     else:
-                        self._LOGGER.info("Unable to login.")
+                        self._LOGGER.warning("Unable to login at step 1.")
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -268,9 +285,9 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get(
                             "error_description", ""
                         )[0]
-                        self._LOGGER.info(f"Unable to login, {error}")
+                        self._LOGGER.warning(f"Unable to login at step 2, {error}")
                     else:
-                        self._LOGGER.info("Unable to login.")
+                        self._LOGGER.warning("Unable to login at step 2.")
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -308,7 +325,8 @@ class EUDAConnection:
                 maxDepth = 10
                 while not location.startswith(EUDA_CLIENT_LIST[client]["REDIRECT_URL"]):
                     if location is None:
-                        raise PyCupraException("Login failed")
+                        self._LOGGER.warning("Login failed while following redirects.")
+                        raise PyCupraException("Login failed.")
                     if location.startswith("/"):
                         location = EUDA_AUTH_ISSUER + location
                     if "error" in location:
@@ -333,19 +351,14 @@ class EUDAConnection:
                         self._loginError = f"Login failed: {errorTxt}"
                         raise PyCupraLoginFailedException(errorTxt)
                     if "terms-and-conditions" in location:
-                        self._loginError = 'The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        self._loginError = 'The terms and conditions must be accepted first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
                         raise PyCupraEULAException(
-                            'The terms and conditions must be accepted first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                            'The terms and conditions must be accepted first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
                         )
                     if "consent/marketing" in location:
-                        self._loginError = 'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                        self._loginError = 'The question to consent to marketing must be answered first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
                         raise PyCupraMarketingConsentException(
-                            'The question to consent to marketing must be answered first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
-                        )
-                    if "consent" in location:
-                        self._loginError = 'You have to allow the EUDA portal the access to some of your data first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
-                        raise PyCupraEULAException(
-                            'You have to allow the EUDA portal the access to some of your data first at your local SEAT/Cupra site, e.g. "https://cupraid.vwgroup.io/"'
+                            'The question to consent to marketing must be answered first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
                         )
                     if (
                         "user_id" in location
@@ -366,8 +379,14 @@ class EUDAConnection:
                         headers=self._session_auth_headers,
                         allow_redirects=False,
                     )
+                    # The brands have different ways to check and express a missing consent. To avoid possible malfunctions this check is disabled for now.
+                    #if "consent" in location and response.status==200:
+                    #    self._loginError = 'You have to allow the EUDA portal the access to some of your data first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
+                    #    raise PyCupraEULAException(
+                    #        'You have to allow the EUDA portal the access to some of your data first at your local brand site, e.g. "https://cupraid.vwgroup.io/"'
+                    #    )
                     if response.headers.get("Location", False) is False:
-                        self._LOGGER.debug(f"Unexpected response: {await req.text()}")
+                        self._LOGGER.warning(f"Unexpected response: {await req.text()}")
                         raise PyCupraAuthenticationException(
                             "User appears unauthorized"
                         )
@@ -375,6 +394,7 @@ class EUDAConnection:
                     # Set a max limit on requests to prevent forever loop
                     maxDepth -= 1
                     if maxDepth == 0:
+                        self._LOGGER.warning("Too many redirects.")
                         raise PyCupraException("Too many redirects")
             except (
                 PyCupraException,
@@ -395,15 +415,17 @@ class EUDAConnection:
                         self._LOGGER.debug("Got code: %s" % location)
                     pass
                 else:
-                    self._LOGGER.debug("Exception occured while logging in.")
+                    self._LOGGER.warning("Exception occured while logging in. Got no code in location.")
                     raise PyCupraLoginFailedException(e)
 
             # Login at identity portal successful. Now following callback to user.html of EU Data Act portal
-            self._LOGGER.debug("Following call back to get authorisation cookies.")
+            self._LOGGER.debug("Following callback to get authorisation cookies.")
             self._clear_cookies()
 
             req = await self._session.get(
-                url=location, headers=self._session_auth_headers, allow_redirects=False, 
+                url=location,
+                headers=self._session_auth_headers,
+                allow_redirects=False,
             )
             self._session_cookies.update(req.cookies)
             if req.headers.get("Location", False):
@@ -414,9 +436,9 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get(
                             "error_description", ""
                         )[0]
-                        self._LOGGER.info(f"Unable to login, {error}")
+                        self._LOGGER.warning(f"Unable to login following callback, {error}")
                     else:
-                        self._LOGGER.info("Unable to login.")
+                        self._LOGGER.warning("Unable to login following callback.")
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -437,9 +459,9 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get(
                             "error_description", ""
                         )[0]
-                        self._LOGGER.info(f"Unable to login, {error}")
+                        self._LOGGER.warning(f"Unable to login following callback step 2, {error}")
                     else:
-                        self._LOGGER.info("Unable to login.")
+                        self._LOGGER.warning("Unable to login following callback step 2.")
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -458,9 +480,9 @@ class EUDAConnection:
                         error = parse_qs(urlparse(ref).query).get(
                             "error_description", ""
                         )[0]
-                        self._LOGGER.info(f"Unable to login, {error}")
+                        self._LOGGER.warning(f"Unable to login following callback step 3, {error}")
                     else:
-                        self._LOGGER.info("Unable to login.")
+                        self._LOGGER.warning("Unable to login following callback step 3.")
                     raise PyCupraException(error)
                 else:
                     if self._session_fulldebug:
@@ -468,11 +490,11 @@ class EUDAConnection:
                     req = await self._session.get(
                         url=ref,
                         headers=self._session_auth_headers,
-                        allow_redirects=False,
+                        allow_redirects=True,
                     )
 
             if req.status != 200:
-                self._LOGGER.debug(
+                self._LOGGER.warning(
                     f"Walking through redirects was not successful. Response: {req}"
                 )
                 loginInProgress = False
@@ -505,7 +527,7 @@ class EUDAConnection:
             raise
         except PyCupraException:
             self._LOGGER.error(
-                "An API error was encountered during login, try again later"
+                "An API error was encountered during login, try again later."
             )
             loginInProgress = False
             raise
@@ -524,6 +546,7 @@ class EUDAConnection:
             loginInProgress = False
             return False
         loginInProgress = False
+        self._loginError = None # Clear a possible login error from the last call of _authorize()
         return True
 
     async def _signin_service_seat(
@@ -543,7 +566,7 @@ class EUDAConnection:
                 raise PyCupraLoginFailedException(
                     "Login failed, server did not return a login form"
                 )
-            pageElement: Any = responseSoup.find("form") #class="c92935a96 c35432a7f")
+            pageElement: Any = responseSoup.find("form")
             for t in pageElement.find_all("input", type="hidden"):
                 if self._session_fulldebug:
                     self._LOGGER.debug(
@@ -552,14 +575,14 @@ class EUDAConnection:
                 form_data[t["name"]] = t["value"]
             form_data["username"] = self._session_auth_username
             form_data["password"] = self._session_auth_password
-            pe_url =html.url.human_repr()
+            pe_url = html.url.human_repr()
 
         except Exception as e:
             self._LOGGER.error(f"Failed to extract user login form. Error: {e}")
             raise
 
         # POST email
-        self._session_auth_headers["Referer"] = EUDA_BASE_URL #authorizationEndpoint
+        self._session_auth_headers["Referer"] = EUDA_BASE_URL  # authorizationEndpoint
         self._session_auth_headers["Origin"] = authissuer
         self._LOGGER.debug(
             self.anonymise(
@@ -567,11 +590,18 @@ class EUDAConnection:
             )
         )
         req = await self._session.post(
-            url=pe_url, headers=self._session_auth_headers, data=form_data,
+            url=pe_url,
+            headers=self._session_auth_headers,
+            data=form_data,
             allow_redirects=False,
         )
         if req.status >= 400:
-            raise PyCupraException("Authorization request failed")
+            self._LOGGER.error(f"Authorization request failed with http status {req.status}. Server response (unanonymised): {await req.content.read()}")
+            if req.status == 400:
+                self._loginError = "Invalid credentials"
+                raise PyCupraAuthenticationException("Invalid credentials")
+            else:
+                raise PyCupraException(f"Authorization request failed with http status {req.status}.")
         return req.headers.get("Location", None)
 
     async def _signin_service(
@@ -592,9 +622,6 @@ class EUDAConnection:
                     "Login failed, server did not return a login form"
                 )
             pageElement: Any = responseSoup.find("form", id="emailPasswordForm")
-            #if pageElement is None and self._session_auth_brand in ("cupra", "seat"):
-            #    self._LOGGER.debug("Could not find emailPasswordForm. Try new signin for Seat/Cupra")
-            #    return await self._signin_service_seat(html, authissuer, authorizationEndpoint, client)
 
             for t in pageElement.find_all("input", type="hidden"):
                 if self._session_fulldebug:
@@ -620,7 +647,8 @@ class EUDAConnection:
             url=pe_url, headers=self._session_auth_headers, data=form_data
         )
         if req.status != 200:
-            raise PyCupraException("Authorization request failed")
+            self._LOGGER.error(f"Authorization request failed with http status {req.status}. Server response: {await req.content.read()}")
+            raise PyCupraException(f"Authorization request failed with http status {req.status}.")
         try:
             response_data = await req.text()
             responseSoup = BeautifulSoup(response_data, "html.parser")
@@ -692,6 +720,13 @@ class EUDAConnection:
             data=form_data,
             allow_redirects=False,
         )
+        if req.status >= 400:
+            self._LOGGER.error(f"Authorization request failed with http status {req.status}. Server response (unanonymised): {await req.content.read()}")
+            if req.status == 400:
+                self._loginError = "Invalid credentials"
+                raise PyCupraAuthenticationException("Invalid credentials")
+            else:
+                raise PyCupraException(f"Authorization request failed with http status {req.status}.")
         return req.headers.get("Location", None)
 
     async def terminate(self) -> None:
@@ -713,9 +748,9 @@ class EUDAConnection:
             self._LOGGER.error(
                 f'Request for "{url}" returned with status code [{response.status}], response: {response}'
             )
-            raise PyCupraException(
-                f"http.get for logout failed. Response status: {response.status}"
-            )
+            #raise PyCupraException(
+            #    f"http.get for logout failed. Response status: {response.status}"
+            #)
         self._LOGGER.info(
             f"Sent logout call to API. Response status = {response.status}"
         )
@@ -727,12 +762,16 @@ class EUDAConnection:
         try:
             response = await self.getWithRelogin(url, vin)
             if isinstance(response, dict):
-                if response.get("status_code", 0) in (401, 403) and not self._error401 and not self._error403:
+                if (
+                    response.get("status_code", 0) in (401, 403)
+                    and not self._error401
+                    and not self._error403
+                ):
                     # getWithRelogin() got a status code of 401 or 403 and performed a successful relogin
                     # Therefore, the http request is called again
                     response2 = await self.getWithRelogin(url, vin)
                     if isinstance(response2, dict):
-                        if response2.get("status_code", 0)==0:
+                        if response2.get("status_code", 0) == 0:
                             # Second try of the http request succeeded
                             return response2
             return response
@@ -760,7 +799,7 @@ class EUDAConnection:
                 if True:  # not self._error401:
                     self._error401 = True
                     try:
-                        rc = await self._authorize(self._session_auth_brand)
+                        rc = await self.relogin() #self._authorize(self._session_auth_brand)
                         if rc:
                             self._LOGGER.info("Successful relogin after error 401.")
                             self._error401 = False
@@ -783,7 +822,7 @@ class EUDAConnection:
                 if True:  # self._error403 != True:
                     self._error403 = True
                     try:
-                        rc = await self._authorize(self._session_auth_brand)
+                        rc = await self.relogin() #self._authorize(self._session_auth_brand)
                         if rc:
                             self._LOGGER.info("Successful relogin after error 403.")
                             self._error403 = False
@@ -980,7 +1019,7 @@ class EUDAConnection:
 
     async def checkPermission(self, baseurl: str, vin: str = "") -> bool:
         try:
-            return True #checkPermission always returns True, in order to reduce the number of http requests
+            return True  # checkPermission always returns True, in order to reduce the number of http requests
             url = EUDA_API_TOKEN.format(baseurl=EUDA_BASE_URL)
             response = await self._session._request(
                 method=METH_GET,
@@ -1046,6 +1085,7 @@ class EUDAConnection:
         # Get vehicle connectivity information
         else:
             try:
+                self._LOGGER.debug(f"Found {len(data)} vehicle(s).")
                 for vehicle in data["vehicles"]:
                     self._LOGGER.debug(
                         self.anonymise(
@@ -1480,9 +1520,7 @@ class EUDAConnection:
                 return False
             if len(dataFromFile.get("Data", [])) == 0:
                 self._LOGGER.info(
-                    self.anonymise(
-                        f"Data section of file '{fileObj.name}' is empty."
-                    )
+                    self.anonymise(f"Data section of file '{fileObj.name}' is empty.")
                 )
                 return False
             # self._LOGGER.debug('Copying data from single file to raw data dict.')
@@ -1702,7 +1740,9 @@ class EUDAConnection:
             self._LOGGER.error(
                 f"Error while reading trip statistics file. Error: {error}."
             )
-            raise PyCupraReadTripStatisticsFileException("Error while trying to read trip statistics file")
+            raise PyCupraReadTripStatisticsFileException(
+                "Error while trying to read trip statistics file"
+            )
         return False
 
     def writeTripStatisticsFile(self, vin: str | None = None) -> bool:
@@ -1826,12 +1866,14 @@ class EUDAConnection:
                     )
                 data = await self.getDatacluster(EUDA_BASE_URL, vehicle.vin, "partial")
                 if data == {}:
-                    self._LOGGER.error("No data cluster of type 'partial' found.")
+                    self._LOGGER.debug(
+                        f"No data cluster of type 'partial' found. Counter={counter}."
+                    )
                 else:
                     vehicle._states.update(data)
                     self._LOGGER.debug(
                         self.anonymise(
-                            f"Found data cluster of type 'partial'. Name={vehicle._states.get('partial', {}).get('Name', '')}"
+                            f"Found data cluster of type 'partial'. Name={vehicle._states.get('partial', {}).get('Name', '')}. It took {counter + 1} try/tries."
                         )
                     )
                     identifier_partial = vehicle._states["partial"].get(
@@ -1889,7 +1931,7 @@ class EUDAConnection:
                                 )
                                 counter = counter + 1
                             if len(fileContent) > 0:
-                                #loop = asyncio.get_running_loop()
+                                # loop = asyncio.get_running_loop()
                                 if fileName.find("_error") > 0:
                                     # There is an error file on the portal
                                     fileWithPath = os.path.join(

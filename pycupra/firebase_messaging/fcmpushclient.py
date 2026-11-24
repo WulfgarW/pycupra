@@ -101,10 +101,10 @@ class FcmPushClientConfig:  # pylint:disable=too-many-instance-attributes
     """Class to provide configuration to
     :class:`firebase_messaging.FcmPushClientConfig`.FcmPushClient."""
 
-    server_heartbeat_interval: int | None = 10
+    server_heartbeat_interval: int | None = 15 #10
     """Time in seconds to request the server to send heartbeats"""
 
-    client_heartbeat_interval: int | None = 20
+    client_heartbeat_interval: int | None = 30 #20
     """Time in seconds to send heartbeats to the server"""
 
     send_selective_acknowledgements: bool = True
@@ -124,7 +124,7 @@ class FcmPushClientConfig:  # pylint:disable=too-many-instance-attributes
     max_wait_in_listen_for_reset: int = 200
     """Time in seconds to wait in _listen() for a _reset() to succeed."""
 
-    heartbeat_ack_timeout: float = 5
+    heartbeat_ack_timeout: float = 10 #5
     """Time in seconds to wait for a heartbeat ack before resetting."""
 
     abort_on_sequential_error_count: int | None = 3

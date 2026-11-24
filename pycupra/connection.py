@@ -415,9 +415,9 @@ class Connection:
                             error = parse_qs(urlparse(ref).query).get(
                                 "error_description", ""
                             )[0]
-                            self._LOGGER.info(f"Unable to login, {error}")
+                            self._LOGGER.warning(f"Unable to login at step 1, {error}")
                         else:
-                            self._LOGGER.info("Unable to login.")
+                            self._LOGGER.warning(f"Unable to login at step 1.")
                         raise PyCupraException(error)
                     else:
                         if self._session_fulldebug:
@@ -644,7 +644,7 @@ class Connection:
                 self._LOGGER.debug("Could not fetch personal information.")
 
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.writeTokenFile, client)
+            #await loop.run_in_executor(None, self.writeTokenFile, client)
         except PyCupraEULAException:
             if "consent" in location:
                 self._LOGGER.warning(
@@ -742,6 +742,7 @@ class Connection:
             allow_redirects=False,
         )
         if req.status >= 400:
+            self._LOGGER.error(f"Authorization request failed with http status {req.status}. Server response: {await req.content.read()}")
             raise PyCupraException("Authorization request failed")
         return req.headers.get("Location", None)
 
@@ -790,6 +791,7 @@ class Connection:
             url=pe_url, headers=self._session_auth_headers.get(client), data=form_data
         )
         if req.status != 200:
+            self._LOGGER.error(f"Authorization request failed with http status {req.status}. Server response: {await req.content.read()}")
             raise PyCupraException("Authorization request failed")
         try:
             response_data = await req.text()

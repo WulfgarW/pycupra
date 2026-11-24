@@ -64,7 +64,12 @@ class Firebase:
     async def firebaseStop(self) -> bool:
         """Stops the firebase cloud messaging receiver"""
         try:
-            await self._pushClient.stop()
+            if self._pushClient is not None:
+                await self._pushClient.stop()
+            else:
+                self._LOGGER.debug(
+                    f"firebaseStop was called, but push client is already {self._pushClient}"
+                )
             self._pushClient = None
             return True
         except Exception as e:
